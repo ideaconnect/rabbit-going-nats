@@ -210,7 +210,7 @@ public class Worker(ILogger<Worker> logger, IOptions<RabbitMqConnection> rabbitM
                 _channel.BasicAck(ea.DeliveryTag, true);
 
                 // send it further to NATS
-                await _natsClient.PublishAsync(subject: _natsConnectionConfig.Subject, data: message);
+                await _natsClient.PublishAsync(subject: _natsConnectionConfig.Subject, data: message, replyTo: _natsConnectionConfig.Subject);
                 _stopWatch.Stop();
 
                 // cannot measure exactly as at least on ARM64 ticks counting is rubbish and none form of integrated
