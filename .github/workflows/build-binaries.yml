@@ -31,7 +31,7 @@ jobs:
         run: docker run --rm -w /app -v ./:/app --platform linux/arm64 rabbit-going-nats/builder dotnet publish
 
       - name: Store ARM64 binary
-      - uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: arm64-binary
           path: /app/bin/Release/net8.0/linux-arm64/publish/
@@ -59,7 +59,7 @@ jobs:
         run: docker run --rm -w /app -v ./:/app --platform linux/amd64 rabbit-going-nats/builder dotnet publish
 
       - name: Store ARM64 binary
-      - uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: amd64-binary
           path: /app/bin/Release/net8.0/linux-amd64/publish/
