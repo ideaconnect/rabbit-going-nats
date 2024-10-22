@@ -55,10 +55,10 @@ jobs:
       - name: Build builder
         run: docker build -t rabbit-going-nats/builder --platform linux/amd64 builder/
 
-      - name: Build ARM64 binary
+      - name: Build AMD64 binary
         run: docker run --rm -w /app -v ./:/app --platform linux/amd64 rabbit-going-nats/builder dotnet publish
 
-      - name: Store ARM64 binary
+      - name: Store AMD64 binary
         uses: actions/upload-artifact@v4
         with:
           name: amd64-binary
