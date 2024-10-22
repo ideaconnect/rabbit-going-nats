@@ -1,0 +1,66 @@
+name: Build ARM64 and AMD64 binaries.
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: ~
+
+jobs:
+  ARM64:
+    name: Build ARM64 binary (QEMU required).
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Build builder
+        run: docker build -t rabbit-going-nats/builder --platform linux/arm64 builder/
+
+      - name: Build ARM64 binary
+        run: docker run --rm -w /app -v ./:/app --platform linux/arm64 rabbit-going-nats/builder dotnet publish
+
+      - name: Store ARM64 binary
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arm64-binary
+          path: /app/bin/Release/net8.0/linux-arm64/publish/
+          compression-level: 9 # maximum compression
+
+  AMD64:
+    name: Build AMD binary (No QEMU required).
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Build builder
+        run: docker build -t rabbit-going-nats/builder --platform linux/amd64 builder/
+
+      - name: Build ARM64 binary
+        run: docker run --rm -w /app -v ./:/app --platform linux/amd64 rabbit-going-nats/builder dotnet publish
+
+      - name: Store ARM64 binary
+      - uses: actions/upload-artifact@v4
+        with:
+          name: amd64-binary
+          path: /app/bin/Release/net8.0/linux-amd64/publish/
+          compression-level: 9 # maximum compression
