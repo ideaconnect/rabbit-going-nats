@@ -117,6 +117,7 @@ public class Worker(ILogger<Worker> logger, IOptions<RabbitMqConnection> rabbitM
             // than fine with NET 8+, no need for a workaround with NatsConnection.
             _natsClient = new NatsClient(n);
 
+            string replyTopic = "reply-" + _natsConnectionConfig.Subject;
 
             _resetEvent = new ManualResetEvent(false);
 
@@ -210,7 +211,7 @@ public class Worker(ILogger<Worker> logger, IOptions<RabbitMqConnection> rabbitM
                 _channel.BasicAck(ea.DeliveryTag, true);
 
                 // send it further to NATS
-                await _natsClient.PublishAsync(subject: _natsConnectionConfig.Subject, data: message, replyTo: _natsConnectionConfig.Subject);
+                await _natsClient.PublishAsync(subject: _natsConnectionConfig.Subject, data: message, replyTo: replyTopic);
                 _stopWatch.Stop();
 
                 // cannot measure exactly as at least on ARM64 ticks counting is rubbish and none form of integrated
