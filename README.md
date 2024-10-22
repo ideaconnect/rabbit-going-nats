@@ -24,9 +24,8 @@ Repository features two precompiled applications:
 You may compile for your environment using simply `dotnet publish` command.
 
 To run the application just:
-1) compile yourself or download the binary from latest Github Actions artifacts
-(one day i will create releases there...)
-2) place the binary in a desired folder
+1) compile yourself or download the binary from latest Release.
+2) place the binary in a desired folder.
 3) create appsettings.json as instructed below.
 
 NOTE: I personally suggest to run this using **supervisor** to be sure it gets

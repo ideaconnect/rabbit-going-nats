@@ -7,17 +7,14 @@ on:
 
 jobs:
   ARM64:
-    name: Build ARM64 binary (QEMU required).
-    runs-on: ubuntu-latest
+    name: Build ARM64 binary (Until GitHub adds public ARM64 runs on IDCT-DRAGON).
+    runs-on: [self-hosted, linux, ARM64]
     permissions:
       packages: write
       contents: read
       attestations: write
       id-token: write
     steps:
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -30,6 +27,12 @@ jobs:
       - name: Build ARM64 binary
         run: docker run --rm -w /app -v ./:/app --platform linux/arm64 rabbit-going-nats/builder dotnet publish
 
+      - name: Copy README and Licenses
+        run: |
+          cp README.md bin/Release/net8.0/linux-arm64/publish/
+          cp LICENSE bin/Release/net8.0/linux-arm64/publish/
+          cp -r Licenses bin/Release/net8.0/linux-arm64/publish/Licenses
+
       - name: Store ARM64 binary
         uses: actions/upload-artifact@v4
         with:
@@ -38,7 +41,7 @@ jobs:
           compression-level: 9 # maximum compression
 
   AMD64:
-    name: Build AMD binary (No QEMU required).
+    name: Build AMD binary.
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -57,6 +60,12 @@ jobs:
 
       - name: Build AMD64 binary
         run: docker run --rm -w /app -v ./:/app --platform linux/amd64 rabbit-going-nats/builder dotnet publish
+
+      - name: Copy README and Licenses
+        run: |
+          cp README.md bin/Release/net8.0/linux-x64/publish/
+          cp LICENSE bin/Release/net8.0/linux-x64/publish/
+          cp -r Licenses bin/Release/net8.0/linux-x64/publish/Licenses
 
       - name: Store AMD64 binary
         uses: actions/upload-artifact@v4
