@@ -62,5 +62,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: amd64-binary
-          path: /app/bin/Release/net8.0/linux-amd64/publish/
+          path: /app/bin/Release/net8.0/linux-x64/publish/
           compression-level: 9 # maximum compression
