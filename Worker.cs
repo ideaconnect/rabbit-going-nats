@@ -61,8 +61,6 @@ public class Worker(ILogger<Worker> logger, IOptions<RabbitMqConnection> rabbitM
     /// </summary>
     private DateTime? _connectionLossTimeNats;
 
-    private Stopwatch _stopWatch = new();
-
     /// <summary>
     /// Main worker thread.
     /// </summary>
@@ -201,7 +199,7 @@ public class Worker(ILogger<Worker> logger, IOptions<RabbitMqConnection> rabbitM
             // main callback: on new message
             consumer.Received += async (model, ea) =>
             {
-                _stopWatch.Start();
+                var start = DateTime.UtcNow;
                 // read the message from the queue
                 var body = ea.Body.ToArray();
                 var message = System.Text.Encoding.UTF8.GetString(body);
@@ -212,11 +210,11 @@ public class Worker(ILogger<Worker> logger, IOptions<RabbitMqConnection> rabbitM
 
                 // send it further to NATS
                 await _natsClient.PublishAsync(subject: _natsConnectionConfig.Subject, data: message, replyTo: replyTopic);
-                _stopWatch.Stop();
+                var diff = DateTime.UtcNow - start;
 
                 // cannot measure exactly as at least on ARM64 ticks counting is rubbish and none form of integrated
                 // stopwatches or even miliseconds counting is precise enough.
-                if (_stopWatch.ElapsedMilliseconds > 500) {
+                if (diff.TotalMilliseconds > 500) {
                     _logger.LogError("Hiccup! Passing of the message took longer than 500ms.");
                 }
 
