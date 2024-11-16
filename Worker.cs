@@ -87,24 +87,35 @@ public class Worker(ILogger<Worker> logger, IOptions<RabbitMqConnection> rabbitM
 
             _channel = _connection.CreateModel();
 
-            string secret = _natsConnectionConfig.Secret;
+            string? secret = _natsConnectionConfig.Secret;
+            string? user = _natsConnectionConfig.User;
+            string? password = _natsConnectionConfig.Password;
 
             NatsOpts n;
             // Initialize NATS, with secret if configured.
             // TODO support more auth options
-            if (secret.Length > 0)
+            NatsAuthOpts? authOpts = null;
+            if (secret?.Length > 0)
             {
+                authOpts = new NatsAuthOpts()
+                {
+                    Token = secret
+                };
+            } else if (user?.Length > 0 && password?.Length > 0) {
+                authOpts = new NatsAuthOpts()
+                {
+                    Username = user,
+                    Password = password
+                };
+            }
+
+            if (authOpts != null) {
                 n = new()
                 {
                     Url = _natsConnectionConfig.Url,
-                    AuthOpts = new NatsAuthOpts()
-                    {
-                        Token = secret
-                    }
+                    AuthOpts = authOpts
                 };
-            }
-            else
-            {
+            } else {
                 n = new()
                 {
                     Url = _natsConnectionConfig.Url,
