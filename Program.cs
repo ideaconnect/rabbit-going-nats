@@ -1,6 +1,23 @@
 using RabbitGoingNats;
 using RabbitGoingNats.Model;
+using RabbitGoingNats.Service;
 using NLog.Extensions.Logging;
+
+/*
+   Copyright 2024 IDCT Bartosz Pachołek
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
 
 /*
     Application uses:
@@ -20,10 +37,6 @@ using NLog.Extensions.Logging;
 
     All licenses provided in LICENSES folder.
     Copied from: https://licenses.nuget.org/.
-
-    Main application Rabbit-Going-Nats is licenses under MIT license.
-    Creator of the application gives all the credits to the authors of the libraries
-    used in this software and claims no ownership to those parts.
 */
 
 IHost host = Host.CreateDefaultBuilder(args)
@@ -33,6 +46,8 @@ IHost host = Host.CreateDefaultBuilder(args)
         // Triggers AOT warnings, yet for NET 8+ workaround is actually not needed.
         services.Configure<RabbitMqConnection>(configuration.GetSection("RabbitMq"));
         services.Configure<NatsConnection>(configuration.GetSection("Nats"));
+        services.AddScoped<NatsConnectionService>();
+        services.AddScoped<RabbitMqConnectionHandler>();
         services.AddHostedService<Worker>();
         services.AddLogging(static loggingBuilder =>
             {
@@ -42,4 +57,4 @@ IHost host = Host.CreateDefaultBuilder(args)
     })
     .Build();
 
-host.Run();
+await host.RunAsync();

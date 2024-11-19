@@ -27,6 +27,15 @@ jobs:
       - name: Build ARM64 binary
         run: docker run --rm -w /app -v ./:/app --platform linux/arm64 rabbit-going-nats/builder dotnet publish
 
+      - name: Prepare test
+        run: ./setup-test.sh
+
+      - name: Run app in the background
+        run: nohup bin/Release/net8.0/linux-arm64/publish/RabbitGoingNats &
+
+      - name: Run test
+        run: ./run-test.sh
+
       - name: Store ARM64 binary
         uses: actions/upload-artifact@v4
         with:
@@ -54,6 +63,15 @@ jobs:
 
       - name: Build AMD64 binary
         run: docker run --rm -w /app -v ./:/app --platform linux/amd64 rabbit-going-nats/builder dotnet publish
+
+      - name: Prepare test
+        run: ./setup-test.sh
+
+      - name: Run app in the background
+        run: nohup bin/Release/net8.0/linux-arm64/publish/RabbitGoingNats &
+
+      - name: Run test
+        run: ./run-test.sh
 
       - name: Store AMD64 binary
         uses: actions/upload-artifact@v4

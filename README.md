@@ -54,8 +54,18 @@ standard `appsettings.json` in the workdir:
 }
 ```
 
+You may also use username and password:
+```json
+{
+    "Nats": {
+        "Url": "nats://localhost:4222",
+        "Username": "<your username>",
+        "Password": "<your password>"
+    }
+}
+```
 `VirtualHost` defaults to "/".
-If your NATS server does not have any protection leave `Secret` field empty.
+If your NATS server does not have any protection leave `Secret` and `Username`/`Password` fields empty.
 
 This file may be used also to set config details for Nlog Logging.
 
