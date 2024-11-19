@@ -1,40 +1,68 @@
 namespace RabbitGoingNats.Service;
 
-using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Options;
 using NATS.Client.Core;
 using NATS.Net;
-using RabbitGoingNats.Model;
 
 public class NatsConnectionService
 {
+    /// <summary>
+    /// Instance of the connector.
+    /// </summary>
     private readonly NatsClient natsClientInstance;
 
+    /// <summary>
+    /// Connection details.
+    /// </summary>
     private readonly Model.NatsConnection natsConnectionConfig;
 
+    /// <summary>
+    /// Logger's instance handler.
+    /// </summary>
     private readonly ILogger logger;
 
+    /// <summary>
+    /// Reply-To topic which allows ACK.
+    /// </summary>
     private readonly string replyTopic;
 
     /// <summary>
     /// Connection loss of NATS (if occurred) time, for logging.
     /// </summary>
     private DateTime? connectionLossTime;
-    public NatsConnectionService(ILogger<Worker> logger, IOptions<Model.NatsConnection> nats)
+
+    /// <summary>
+    /// Creates the connection service for NATS.
+    /// </summary>
+    /// <param name="logger">Logger's instance</param>
+    /// <param name="nats">Options which define connection params.</param>
+    public NatsConnectionService(ILogger<NatsConnectionService> logger, IOptions<Model.NatsConnection> nats)
     {
         this.logger = logger;
+
+        //Connection parameters.
         natsConnectionConfig = nats.Value;
+
+        //Default reply-to topic: allows ACK.
         replyTopic = "r-" + natsConnectionConfig.Subject;
+
+        //creates a new instance of the client connector.
         natsClientInstance = Create();
+        logger.LogInformation("Initialized NATS connection service at: {time}.", DateTimeOffset.Now);
     }
 
-    public async ValueTask Publish(string message)
+    /// <summary>
+    /// Sends the actual message.
+    /// </summary>
+    /// <param name="message">String, text, payload, message.</param>
+    /// <returns></returns>
+    public async Task Publish(string message)
     {
+        logger.LogDebug("Message: {message}", message);
         await natsClientInstance.PublishAsync(subject: natsConnectionConfig.Subject, data: message, replyTo: replyTopic);
     }
     private NatsClient Create()
     {
-
         string? secret = natsConnectionConfig.Secret;
         string? user = natsConnectionConfig.User;
         string? password = natsConnectionConfig.Password;
@@ -86,6 +114,7 @@ public class NatsConnectionService
         // When conenction gets dropped
         client.Connection.ConnectionDisconnected += (m, e) =>
         {
+            // Track the connection loss time. Allows us to log how long it took.
             connectionLossTime = DateTime.UtcNow;
             logger.LogError("Lost connection with NATS.");
             return ValueTask.CompletedTask;
@@ -96,6 +125,7 @@ public class NatsConnectionService
         {
             if (connectionLossTime != null)
             {
+                // If there was already a shortage of the connection: report how long.
                 TimeSpan? diff = DateTime.UtcNow - connectionLossTime;
                 logger.LogError("Regained NATS connection. Issue took {@}s", (diff?.TotalSeconds) ?? -1);
                 connectionLossTime = null; //reset timer
