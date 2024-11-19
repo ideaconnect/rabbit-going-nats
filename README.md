@@ -5,8 +5,6 @@ Tool which allows to passthrough messages fetched from RabbitMQ's queue to NATS
 PubSub. Useful if you receive a data feed through RabbitMQ, but you need to
 redistribute it further to multiple clients in the most efficient way.
 
-Learn more why NATS is the way to go: https://idct.tech/articles/going-nats
-
 Allows to create an infrastructure as in the diagram below:
 
 ![PubSub schema image](.github/diagram.png "PubSub Schema Image")
