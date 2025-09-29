@@ -238,14 +238,14 @@ public class RabbitMqConnectionHandler(
         }
 
         var startTime = DateTime.UtcNow;
-        
+
         // Get the channel from the consumer (AOT-safe approach)
         IModel? channel = null;
         if (model is EventingBasicConsumer consumer)
         {
             channel = consumer.Model;
         }
-        
+
         if (channel == null)
         {
             _logger.LogError("Unable to get channel from consumer model: {ModelType}", model?.GetType().Name ?? "null");
