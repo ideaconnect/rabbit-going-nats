@@ -10,11 +10,13 @@ public class NatsConnectionHandlerTests : IDisposable
 {
     private readonly Mock<ILogger<NatsConnectionHandler>> _mockLogger;
     private readonly Mock<IOptions<NatsConnection>> _mockOptions;
+    private readonly Mock<IMessageStatisticsService> _mockStatisticsService;
 
     public NatsConnectionHandlerTests()
     {
         _mockLogger = new Mock<ILogger<NatsConnectionHandler>>();
         _mockOptions = new Mock<IOptions<NatsConnection>>();
+        _mockStatisticsService = new Mock<IMessageStatisticsService>();
     }
 
     [Fact]
@@ -29,7 +31,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -49,7 +51,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -74,7 +76,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -97,7 +99,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -123,7 +125,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -149,7 +151,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -174,7 +176,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -198,7 +200,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -223,7 +225,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -245,7 +247,7 @@ public class NatsConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -277,7 +279,7 @@ public class NatsConnectionHandlerTests : IDisposable
         // Setup debug logging to be enabled
         _mockLogger.Setup(x => x.IsEnabled(LogLevel.Debug)).Returns(true);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
         var testMessage = "Test message content";
 
         // Act & Assert
@@ -310,7 +312,7 @@ public class NatsConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
         var testMessage = "Valid test message";
 
         // Act & Assert
@@ -342,7 +344,7 @@ public class NatsConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Act
         await handler.DisposeAsync();
@@ -362,7 +364,7 @@ public class NatsConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Act & Assert
         await handler.DisposeAsync();
@@ -388,7 +390,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -413,7 +415,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -436,7 +438,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         // We can't directly test the reply topic since it's private,
@@ -459,7 +461,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.IsAssignableFrom<IAsyncDisposable>(handler);
@@ -483,7 +485,7 @@ public class NatsConnectionHandlerTests : IDisposable
         // Setup trace logging to be enabled
         _mockLogger.Setup(x => x.IsEnabled(LogLevel.Trace)).Returns(true);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
         var testMessage = "Test message for trace logging";
 
         // Act & Assert
@@ -515,7 +517,7 @@ public class NatsConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
         var emptyMessage = "";
 
         // Act & Assert
@@ -548,7 +550,7 @@ public class NatsConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
         // Create a large message to test handling of substantial payloads
         var largeMessage = new string('A', 10000);
 
@@ -587,7 +589,7 @@ public class NatsConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Act & Assert
         try
@@ -622,7 +624,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -655,7 +657,7 @@ public class NatsConnectionHandlerTests : IDisposable
             _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
             // Act
-            var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+            var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
             // Assert
             Assert.NotNull(handler);
@@ -682,7 +684,7 @@ public class NatsConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Act - Multiple disposals should be safe
         await handler.DisposeAsync();
@@ -707,7 +709,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -731,7 +733,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -781,7 +783,7 @@ public class NatsConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Act - Multiple disposals should be safe and not throw
         await handler.DisposeAsync();
@@ -810,7 +812,7 @@ public class NatsConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Act & Assert
         // We expect this to fail in test environment (no real NATS server)
@@ -850,7 +852,7 @@ public class NatsConnectionHandlerTests : IDisposable
         // Enable trace logging
         _mockLogger.Setup(x => x.IsEnabled(LogLevel.Trace)).Returns(true);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Act
         try
@@ -886,7 +888,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -926,7 +928,7 @@ public class NatsConnectionHandlerTests : IDisposable
             _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
             // Act
-            var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+            var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
             // Assert
             Assert.NotNull(handler);
@@ -956,7 +958,7 @@ public class NatsConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Act - Multiple disposals
         await handler.DisposeAsync();
@@ -985,7 +987,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -1009,7 +1011,7 @@ public class NatsConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(() => handler.Publish(null!));
@@ -1035,7 +1037,7 @@ public class NatsConnectionHandlerTests : IDisposable
         // Ensure trace logging is disabled
         _mockLogger.Setup(x => x.IsEnabled(LogLevel.Trace)).Returns(false);
 
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Act
         try
@@ -1072,7 +1074,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -1101,7 +1103,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Test multiple publishes
         var messages = new[] { "Message 1", "Message 2", "Message 3" };
@@ -1143,7 +1145,7 @@ public class NatsConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(natsConfig);
 
         // Act
-        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockStatisticsService.Object);
 
         // Assert - Handler is created successfully
         Assert.NotNull(handler);

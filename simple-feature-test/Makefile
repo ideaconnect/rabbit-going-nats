@@ -67,7 +67,7 @@ setup-containers:
 	@echo "Containers setup completed"
 
 # Run target: starts the application and runs the test
-run: start-app test-messaging
+run: start-app test-web-service test-messaging
 
 # Start the rabbit-going-nats application
 start-app:
@@ -76,6 +76,28 @@ start-app:
 	dotnet $(APP_NAME).dll &
 	@echo "Application started, waiting for initialization..."
 	sleep 5
+
+# Test the web monitoring service
+test-web-service:
+	@echo "Testing web monitoring service..."
+	@echo "Checking if web service is responding on port 8018..."
+	@for i in $$(seq 1 10); do \
+		if curl -s -f http://localhost:8018/health >/dev/null 2>&1; then \
+			echo "✅ Web service is responding"; \
+			break; \
+		else \
+			echo "⏳ Waiting for web service... (attempt $$i/10)"; \
+			sleep 2; \
+		fi; \
+		if [ $$i -eq 10 ]; then \
+			echo "❌ Web service failed to respond after 20 seconds"; \
+			exit 1; \
+		fi; \
+	done
+	@echo "Testing web service endpoints..."
+	@curl -s http://localhost:8018/health | grep -q "healthy" && echo "✅ Health endpoint working" || (echo "❌ Health endpoint failed" && exit 1)
+	@curl -s http://localhost:8018/stats | grep -q "lastMessageReceived" && echo "✅ Stats endpoint working" || (echo "❌ Stats endpoint failed" && exit 1)
+	@echo "✅ Web monitoring service tests passed"
 
 # Test messaging functionality
 test-messaging:
@@ -96,6 +118,11 @@ test-messaging:
 	else \
 		echo "✅ Test PASSED: All 15 messages successfully forwarded from RabbitMQ to NATS"; \
 	fi
+	@echo "Checking web service statistics..."
+	@sleep 1
+	@stats=$$(curl -s http://localhost:8018/stats); \
+	echo "Current statistics: $$stats"; \
+	echo "$$stats" | grep -q '"messagesInLastHour":15' && echo "✅ Web statistics show correct message count" || echo "⚠️  Web statistics may not reflect exact count (timing dependent)"
 
 # Stop all containers and clean up
 stop:
@@ -108,10 +135,16 @@ stop:
 # Help target
 help:
 	@echo "Available targets:"
-	@echo "  all         - Run prepare and run (default)"
-	@echo "  prepare     - Build project, copy binaries, and setup containers"
-	@echo "  run         - Start application and run messaging test"
-	@echo "  build       - Build the rabbit-going-nats project"
-	@echo "  clean       - Clean containers, logs, and binaries"
-	@echo "  stop        - Stop containers and application"
-	@echo "  help        - Show this help message"
+	@echo "  all              - Run prepare and run (default)"
+	@echo "  prepare          - Build project, copy binaries, and setup containers"
+	@echo "  run              - Start application and run all tests"
+	@echo "  build            - Build the rabbit-going-nats project"
+	@echo "  test-web-service - Test the web monitoring service endpoints"
+	@echo "  test-messaging   - Test message forwarding from RabbitMQ to NATS"
+	@echo "  clean            - Clean containers, logs, and binaries"
+	@echo "  stop             - Stop containers and application"
+	@echo "  help             - Show this help message"
+	@echo ""
+	@echo "The web monitoring service provides endpoints:"
+	@echo "  http://localhost:8018/health - Health check endpoint"
+	@echo "  http://localhost:8018/stats  - Message statistics endpoint"

@@ -69,6 +69,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         // This eliminates reflection and improves startup performance in AOT scenarios
         services.Configure<RabbitMqConnection>(configuration.GetSection("RabbitMq"));
         services.Configure<NatsConnection>(configuration.GetSection("Nats"));
+        services.Configure<WebServiceConfiguration>(configuration.GetSection("WebService"));
 
         // === CONFIGURATION VALIDATION ===
         // Validate RabbitMQ configuration at startup to fail fast if misconfigured
@@ -101,15 +102,34 @@ IHost host = Host.CreateDefaultBuilder(args)
                 throw new InvalidOperationException("NATS Url must be a valid URI with 'nats://' or 'nats+tls://' scheme");
         });
 
+        // Validate WebService configuration at startup
+        services.PostConfigure<WebServiceConfiguration>(options =>
+        {
+            // Validate port range if web service is enabled
+            if (options.Enabled && (options.Port <= 0 || options.Port > 65535))
+                throw new InvalidOperationException("WebService Port must be between 1 and 65535");
+            
+            // Validate host if web service is enabled
+            if (options.Enabled && string.IsNullOrWhiteSpace(options.Host))
+                throw new InvalidOperationException("WebService Host is required when web service is enabled");
+        });
+
         // === SERVICE REGISTRATION ===
         // Register messaging service implementations with their interfaces
         // Using Singleton lifetime because these manage persistent connections
         services.AddSingleton<INatsConnectionHandler, NatsConnectionHandler>();
         services.AddSingleton<IRabbitMqConnectionHandler, RabbitMqConnectionHandler>();
 
+        // Register statistics and web monitoring services
+        services.AddSingleton<IMessageStatisticsService, MessageStatisticsService>();
+
         // Register the main worker as a hosted service
         // This integrates with .NET's hosting infrastructure for lifecycle management
         services.AddHostedService<Worker>();
+        
+        // Register the web monitoring service as a hosted service
+        // Note: WebMonitoringService implements both IWebMonitoringService and IHostedService
+        services.AddHostedService<WebMonitoringService>();
 
         // === LOGGING CONFIGURATION ===
         // Configure structured logging using NLog

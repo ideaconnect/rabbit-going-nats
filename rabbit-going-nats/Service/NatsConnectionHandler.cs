@@ -67,6 +67,11 @@ public class NatsConnectionHandler : INatsConnectionHandler, IAsyncDisposable
     private readonly ILogger logger;
 
     /// <summary>
+    /// Service for tracking message statistics.
+    /// </summary>
+    private readonly IMessageStatisticsService statisticsService;
+
+    /// <summary>
     /// Reply-to subject for message acknowledgment support.
     ///
     /// This subject is automatically generated based on the main subject with
@@ -107,9 +112,10 @@ public class NatsConnectionHandler : INatsConnectionHandler, IAsyncDisposable
     /// server URL, authentication credentials, and the target subject. The options
     /// are validated before use and should contain all required configuration values.
     /// </param>
-    public NatsConnectionHandler(ILogger<NatsConnectionHandler> logger, IOptions<Model.NatsConnection> nats)
+    public NatsConnectionHandler(ILogger<NatsConnectionHandler> logger, IOptions<Model.NatsConnection> nats, IMessageStatisticsService statisticsService)
     {
         this.logger = logger;
+        this.statisticsService = statisticsService ?? throw new ArgumentNullException(nameof(statisticsService));
 
         // Extract connection parameters from the configuration options
         // This configuration has been validated at startup to ensure required values are present
@@ -192,6 +198,9 @@ public class NatsConnectionHandler : INatsConnectionHandler, IAsyncDisposable
                 subject: natsConnectionConfig.Subject,
                 data: message,
                 replyTo: replyTopic);
+
+            // Record message sent for statistics
+            statisticsService.RecordMessageSent();
 
             // Log successful publication at trace level for detailed monitoring
             logger.LogTrace("Successfully published message to NATS subject {subject}", natsConnectionConfig.Subject);

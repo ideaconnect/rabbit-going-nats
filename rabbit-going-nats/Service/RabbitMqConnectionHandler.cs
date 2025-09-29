@@ -40,12 +40,18 @@ namespace RabbitGoingNats.Service;
 public class RabbitMqConnectionHandler(
     ILogger<RabbitMqConnectionHandler> logger,
     IOptions<RabbitMqConnection> rabbitMqOptions,
-    INatsConnectionHandler natsConnectionHandler) : IRabbitMqConnectionHandler, IAsyncDisposable
+    INatsConnectionHandler natsConnectionHandler,
+    IMessageStatisticsService statisticsService) : IRabbitMqConnectionHandler, IAsyncDisposable
 {
     /// <summary>
     /// Logger instance for this service.
     /// </summary>
     private readonly ILogger<RabbitMqConnectionHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+    /// <summary>
+    /// Service for tracking message statistics.
+    /// </summary>
+    private readonly IMessageStatisticsService _statisticsService = statisticsService ?? throw new ArgumentNullException(nameof(statisticsService));
 
     /// <summary>
     /// RabbitMQ connection configuration options.
@@ -260,6 +266,9 @@ public class RabbitMqConnectionHandler(
 
             _logger.LogTrace("Received message with delivery tag {DeliveryTag}, size: {MessageSize} bytes",
                 ea.DeliveryTag, body.Length);
+
+            // Record message received for statistics
+            _statisticsService.RecordMessageReceived();
 
             // Acknowledge message BEFORE forwarding to NATS to prevent RabbitMQ queue blockage
             // if NATS becomes unavailable

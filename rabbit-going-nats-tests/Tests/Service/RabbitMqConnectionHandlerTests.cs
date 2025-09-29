@@ -15,12 +15,14 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     private readonly Mock<ILogger<RabbitMqConnectionHandler>> _mockLogger;
     private readonly Mock<IOptions<RabbitMqConnection>> _mockOptions;
     private readonly Mock<INatsConnectionHandler> _mockNatsHandler;
+    private readonly Mock<IMessageStatisticsService> _mockStatisticsService;
 
     public RabbitMqConnectionHandlerTests()
     {
         _mockLogger = new Mock<ILogger<RabbitMqConnectionHandler>>();
         _mockOptions = new Mock<IOptions<RabbitMqConnection>>();
         _mockNatsHandler = new Mock<INatsConnectionHandler>();
+        _mockStatisticsService = new Mock<IMessageStatisticsService>();
     }
 
     [Fact]
@@ -35,7 +37,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -56,7 +58,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new RabbitMqConnectionHandler(null!, _mockOptions.Object, _mockNatsHandler.Object));
+            new RabbitMqConnectionHandler(null!, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object));
     }
 
     [Fact]
@@ -64,7 +66,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new RabbitMqConnectionHandler(_mockLogger.Object, null!, _mockNatsHandler.Object));
+            new RabbitMqConnectionHandler(_mockLogger.Object, null!, _mockNatsHandler.Object, _mockStatisticsService.Object));
     }
 
     [Fact]
@@ -80,7 +82,23 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, null!));
+            new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, null!, _mockStatisticsService.Object));
+    }
+
+    [Fact]
+    public void Constructor_ShouldThrowArgumentNullException_WhenStatisticsServiceIsNull()
+    {
+        // Arrange
+        var rabbitConfig = new RabbitMqConnection
+        {
+            HostName = "localhost",
+            QueueName = "test-queue"
+        };
+        _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, null!));
     }
 
     [Fact]
@@ -91,7 +109,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object));
+            new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object));
     }
 
     [Fact]
@@ -106,7 +124,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -128,7 +146,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -145,7 +163,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -163,7 +181,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -181,7 +199,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -199,7 +217,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Dispose the handler first
         await handler.DisposeAsync();
@@ -220,7 +238,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         using var cts = new CancellationTokenSource();
         cts.Cancel(); // Cancel immediately
@@ -262,7 +280,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -285,7 +303,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -309,7 +327,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -332,7 +350,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -354,7 +372,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -376,7 +394,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -393,7 +411,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act - Multiple disposals should be safe
         await handler.DisposeAsync();
@@ -415,7 +433,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act
         await handler.DisposeAsync();
@@ -441,7 +459,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -460,7 +478,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -480,7 +498,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.NotNull(handler);
@@ -497,7 +515,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act & Assert
         // Since we can't establish real RabbitMQ connections in unit tests,
@@ -520,7 +538,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act
         try
@@ -551,7 +569,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert
         Assert.IsAssignableFrom<IRabbitMqConnectionHandler>(handler);
@@ -578,7 +596,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Test consumption attempt (will fail due to no real server, but tests the workflow)
         try
@@ -616,7 +634,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act & Assert
         // The GetQueueName method is private, but we can test it through ConsumeAsync
@@ -647,7 +665,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act
         try
@@ -681,7 +699,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act
         try
@@ -714,7 +732,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act
         try
@@ -746,7 +764,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act - Dispose without attempting to consume (no connection established)
         await handler.DisposeAsync();
@@ -769,7 +787,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act
         try
@@ -805,7 +823,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
         // Act
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Assert - Handler is created successfully
         Assert.NotNull(handler);
@@ -842,7 +860,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act - Use reflection to call private GetQueueName method
         var getQueueNameMethod = typeof(RabbitMqConnectionHandler).GetMethod("GetQueueName", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -865,7 +883,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act & Assert - Use reflection to call private GetQueueName method
         var getQueueNameMethod = typeof(RabbitMqConnectionHandler).GetMethod("GetQueueName", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -888,7 +906,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act & Assert - Use reflection to call private GetQueueName method
         var getQueueNameMethod = typeof(RabbitMqConnectionHandler).GetMethod("GetQueueName", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -911,7 +929,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act & Assert - Use reflection to call private GetQueueName method
         var getQueueNameMethod = typeof(RabbitMqConnectionHandler).GetMethod("GetQueueName", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -934,7 +952,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Dispose the handler first
         await handler.DisposeAsync();
@@ -962,7 +980,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act & Assert - Use reflection to call private BuildConsumer method with null channel
         var buildConsumerMethod = typeof(RabbitMqConnectionHandler).GetMethod("BuildConsumer", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -984,7 +1002,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Create a mock channel
         var mockChannel = new Mock<IModel>();
@@ -1014,7 +1032,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act - Use reflection to call private OnConsumerShutdown method
         var onConsumerShutdownMethod = typeof(RabbitMqConnectionHandler).GetMethod("OnConsumerShutdown", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -1040,7 +1058,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act - Use reflection to call private OnConsumerRegistered method
         var onConsumerRegisteredMethod = typeof(RabbitMqConnectionHandler).GetMethod("OnConsumerRegistered", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -1065,7 +1083,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // First simulate a connection loss
         var onConsumerShutdownMethod = typeof(RabbitMqConnectionHandler).GetMethod("OnConsumerShutdown", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -1098,7 +1116,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act - Use reflection to call private OnConsumerCancelled method
         var onConsumerCancelledMethod = typeof(RabbitMqConnectionHandler).GetMethod("OnConsumerCancelled", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -1124,7 +1142,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Dispose the handler first
         await handler.DisposeAsync();
@@ -1163,7 +1181,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         };
         _mockOptions.Setup(x => x.Value).Returns(rabbitConfig);
 
-        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(_mockLogger.Object, _mockOptions.Object, _mockNatsHandler.Object, _mockStatisticsService.Object);
 
         // Act - Use reflection to call private OnMessageReceived method with null model
         var onMessageReceivedMethod = typeof(RabbitMqConnectionHandler).GetMethod("OnMessageReceived", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -1229,7 +1247,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         var logger = new Mock<ILogger<RabbitMqConnectionHandler>>();
         var natsHandler = new Mock<INatsConnectionHandler>();
 
-        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object, _mockStatisticsService.Object);
 
         // Use reflection to access private BuildChannel method
         var buildChannelMethod = typeof(RabbitMqConnectionHandler).GetMethod("BuildChannel",
@@ -1263,7 +1281,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         var logger = new Mock<ILogger<RabbitMqConnectionHandler>>();
         var natsHandler = new Mock<INatsConnectionHandler>();
 
-        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object, _mockStatisticsService.Object);
 
         var channelMock = new Mock<IModel>();
         channelMock.Setup(c => c.IsOpen).Returns(true);
@@ -1319,7 +1337,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         var logger = new Mock<ILogger<RabbitMqConnectionHandler>>();
         var natsHandler = new Mock<INatsConnectionHandler>();
 
-        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object, _mockStatisticsService.Object);
 
         var channelMock = new Mock<IModel>();
         channelMock.Setup(c => c.BasicCancel(It.IsAny<string>())).Throws(new Exception("Cancel failed"));
@@ -1358,7 +1376,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         var logger = new Mock<ILogger<RabbitMqConnectionHandler>>();
         var natsHandler = new Mock<INatsConnectionHandler>();
 
-        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object, _mockStatisticsService.Object);
 
         var channelMock = new Mock<IModel>();
         channelMock.Setup(c => c.IsOpen).Returns(true);
@@ -1390,7 +1408,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         var logger = new Mock<ILogger<RabbitMqConnectionHandler>>();
         var natsHandler = new Mock<INatsConnectionHandler>();
 
-        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object, _mockStatisticsService.Object);
 
         var channelMock = new Mock<IModel>();
         channelMock.Setup(c => c.IsOpen).Returns(false); // Channel already closed
@@ -1418,7 +1436,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         var logger = new Mock<ILogger<RabbitMqConnectionHandler>>();
         var natsHandler = new Mock<INatsConnectionHandler>();
 
-        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object, _mockStatisticsService.Object);
 
         var channelMock = new Mock<IModel>();
         channelMock.Setup(c => c.IsOpen).Returns(true);
@@ -1446,7 +1464,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         var logger = new Mock<ILogger<RabbitMqConnectionHandler>>();
         var natsHandler = new Mock<INatsConnectionHandler>();
 
-        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object, _mockStatisticsService.Object);
 
         // Use reflection to access private CleanupConsumer method
         var cleanupMethod = typeof(RabbitMqConnectionHandler).GetMethod("CleanupConsumer",
@@ -1469,7 +1487,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         var logger = new Mock<ILogger<RabbitMqConnectionHandler>>();
         var natsHandler = new Mock<INatsConnectionHandler>();
 
-        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object, _mockStatisticsService.Object);
 
         // Dispose the handler first
         await handler.DisposeAsync();
@@ -1496,7 +1514,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         var logger = new Mock<ILogger<RabbitMqConnectionHandler>>();
         var natsHandler = new Mock<INatsConnectionHandler>();
 
-        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object);
+        var handler = new RabbitMqConnectionHandler(logger.Object, options, natsHandler.Object, _mockStatisticsService.Object);
 
         var cts = new CancellationTokenSource();
         cts.Cancel(); // Cancel immediately
