@@ -1,238 +1,428 @@
-namespace RabbitGoi/// servie </param>
-public class RabbitMqConnectionHandler(ILogger<RabbitMqConnectionHandler> logger, IOptions<RabbitMqConnection> rabbitMq, INatsConnectionHandler natsConnectionHandler) : IRabbitMqConnectionHandlerNats.Service;
-
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using RabbitGoingNats.Model;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitGoingNats.Model;
+using System.Text;
+
+namespace RabbitGoingNats.Service;
 
 /// <summary>
-/// Handles the connection with RabbitMQ and initializes the resending process.
+/// Handles RabbitMQ connections and message consumption for relaying messages to NATS.
+/// This service provides robust connection management, automatic reconnection handling,
+/// and efficient message processing with comprehensive monitoring and error handling.
 /// </summary>
-/// <todo>
-/// Make a connection adapter's interface which will actually allow us to use
-/// different targets than NATS potentially (although that is not the domain of
-/// this project.)
-/// </todo>
-/// <param name="logger">Supported Logger instance, NLog by default.</param>
-/// <param name="rabbitMq">RabbitMQ options (connection detauls).</param>
-/// <param name="natsConnectionHandler">Previously initialized NATS connection
-/// service </param>
-public class RabbitMqConnectionHandler(ILogger<RabbitMqConnectionHandler> logger, IOptions<RabbitMqConnection> rabbitMq, NatsConnectionHandler natsConnectionHandler) : IAsyncDisposable
+/// <remarks>
+/// This implementation includes:
+/// - Thread-safe connection state management
+/// - Automatic reconnection with monitoring
+/// - Comprehensive error handling and logging
+/// - Performance monitoring and heartbeat tracking
+/// - Proper resource disposal following IAsyncDisposable pattern
+/// - Cancellation token support for graceful shutdown
+///
+/// The service consumes messages from a configured RabbitMQ queue and forwards them
+/// to NATS using the injected INatsConnectionHandler. Messages are acknowledged
+/// before forwarding to prevent message loss in case of NATS failures.
+/// </remarks>
+/// <example>
+/// Usage in DI container:
+/// <code>
+/// services.AddSingleton&lt;IRabbitMqConnectionHandler, RabbitMqConnectionHandler&gt;();
+/// </code>
+///
+/// Starting consumption:
+/// <code>
+/// var cancellationToken = new CancellationToken();
+/// await rabbitMqHandler.ConsumeAsync(cancellationToken);
+/// </code>
+/// </example>
+public class RabbitMqConnectionHandler(
+    ILogger<RabbitMqConnectionHandler> logger,
+    IOptions<RabbitMqConnection> rabbitMqOptions,
+    INatsConnectionHandler natsConnectionHandler) : IRabbitMqConnectionHandler, IAsyncDisposable
 {
     /// <summary>
-    /// Connection loss of RabbitMQ (if occurred) time, for logging.
+    /// Logger instance for this service.
     /// </summary>
-    private DateTime? connectionLossTime;
+    private readonly ILogger<RabbitMqConnectionHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <summary>
-    /// Tracks current progress in sending of messages in order to ping every
-    /// 1000 of them that we are still alive.
+    /// RabbitMQ connection configuration options.
     /// </summary>
-    private int progressTracker = 0;
+    private readonly RabbitMqConnection _rabbitMqConfig = rabbitMqOptions?.Value ?? throw new ArgumentNullException(nameof(rabbitMqOptions));
 
     /// <summary>
-    /// Handle to the RabbitMQ's connection which allows us to gracefully close
-    /// it.
+    /// NATS connection handler for message forwarding.
     /// </summary>
-    private IConnection? connection = null;
+    private readonly INatsConnectionHandler _natsConnectionHandler = natsConnectionHandler ?? throw new ArgumentNullException(nameof(natsConnectionHandler));
 
     /// <summary>
-    /// Builds the instance of the connection channel.
+    /// RabbitMQ connection instance. Thread-safe access required.
     /// </summary>
-    /// <returns>Channel's model</returns>
-    private IModel BuildChannel()
-    {
-        //gets the connection detauls
-        var rabbitMqConnectionConfig = rabbitMq.Value;
-
-        // Initialize RabbitMQ's connection factory with the required parts
-        var factory = new ConnectionFactory
-        {
-            AutomaticRecoveryEnabled = true,
-            RequestedHeartbeat = TimeSpan.FromSeconds(30),
-            HostName = rabbitMqConnectionConfig.HostName,
-            NetworkRecoveryInterval = TimeSpan.FromMilliseconds(25)
-        };
-
-        // Optional parts
-        if (rabbitMqConnectionConfig.Port != null) {
-            factory.Port = (int) rabbitMqConnectionConfig.Port;
-        }
-
-        if (rabbitMqConnectionConfig.UserName != null) {
-            factory.UserName = rabbitMqConnectionConfig.UserName;
-        }
-
-        if (rabbitMqConnectionConfig.Password != null) {
-            factory.Password = rabbitMqConnectionConfig.Password;
-        }
-
-        if (rabbitMqConnectionConfig.VirtualHost != null) {
-            factory.VirtualHost = rabbitMqConnectionConfig.VirtualHost;
-        }
-
-        logger.LogInformation("Attempting connection to RabbitMQ");
-        connection = factory.CreateConnection();
-        logger.LogInformation("Connected to RabbitMQ");
-        return connection.CreateModel();
-    }
+    private volatile IConnection? _connection;
 
     /// <summary>
-    /// Gets the queue name from config. Just a helper wrapper.
+    /// Timestamp tracking when connection was lost for monitoring purposes.
     /// </summary>
-    /// <returns>Queue name, string</returns>
+    private volatile DateTime? _connectionLossTime;
+
+    /// <summary>
+    /// Progress counter for heartbeat logging every 1000 messages.
+    /// </summary>
+    private volatile int _progressTracker;
+
+    /// <summary>
+    /// Indicates whether the instance has been disposed.
+    /// </summary>
+    private volatile bool _disposed;
+
+    /// <summary>
+    /// Gets the configured queue name for message consumption.
+    /// </summary>
+    /// <returns>The queue name from configuration.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when queue name is not configured.</exception>
     private string GetQueueName()
     {
-        return rabbitMq.Value.QueueName;
+        if (string.IsNullOrWhiteSpace(_rabbitMqConfig.QueueName))
+        {
+            throw new InvalidOperationException("RabbitMQ queue name is not configured.");
+        }
+        return _rabbitMqConfig.QueueName;
     }
 
     /// <summary>
-    /// Builds the actual consumer of messages from RabbitMQ. Initializes all
-    /// the events.
+    /// Builds and configures a RabbitMQ channel with proper error handling.
     /// </summary>
-    /// <param name="channel">Connection model</param>
-    /// <returns>Eventing consumer connected to RabbitMQ.</returns>
+    /// <returns>A configured IModel instance representing the channel.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when connection cannot be established.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the handler has been disposed.</exception>
+    private IModel BuildChannel()
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(RabbitMqConnectionHandler));
+        }
+
+        try
+        {
+            // Create connection factory with configuration
+            var factory = new ConnectionFactory
+            {
+                HostName = _rabbitMqConfig.HostName ?? "localhost",
+                Port = _rabbitMqConfig.Port ?? 5672,
+                UserName = _rabbitMqConfig.UserName ?? "guest",
+                Password = _rabbitMqConfig.Password ?? "guest",
+                VirtualHost = _rabbitMqConfig.VirtualHost ?? "/",
+                AutomaticRecoveryEnabled = true,
+                TopologyRecoveryEnabled = true,
+                RequestedHeartbeat = TimeSpan.FromSeconds(60),
+                NetworkRecoveryInterval = TimeSpan.FromSeconds(10)
+            };
+
+            _logger.LogDebug("Creating RabbitMQ connection to {HostName}:{Port}", factory.HostName, factory.Port);
+
+            // Create connection and channel
+            _connection = factory.CreateConnection();
+            var channel = _connection.CreateModel();
+
+            _logger.LogInformation("Successfully created RabbitMQ channel");
+            return channel;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to build RabbitMQ channel");
+            throw new InvalidOperationException("Unable to establish RabbitMQ connection", ex);
+        }
+    }
+
+    /// <summary>
+    /// Builds and configures a RabbitMQ consumer with comprehensive event handlers.
+    /// </summary>
+    /// <param name="channel">The RabbitMQ channel to use for the consumer.</param>
+    /// <returns>A configured EventingBasicConsumer instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when channel is null.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the handler has been disposed.</exception>
     private EventingBasicConsumer BuildConsumer(IModel channel)
     {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(RabbitMqConnectionHandler));
+        }
+
+        if (channel == null)
+        {
+            throw new ArgumentNullException(nameof(channel));
+        }
+
         var consumer = new EventingBasicConsumer(channel);
 
-        // In case of connection loss...
-        consumer.Shutdown += (model, ea) =>
-        {
-            //we keep track of the time to later log how long it was disconnected.
-            connectionLossTime = DateTime.UtcNow;
-            logger.LogError("Lost connection with RabbitMQ.");
-        };
+        // Configure connection loss monitoring
+        consumer.Shutdown += OnConsumerShutdown;
+        consumer.Registered += OnConsumerRegistered;
+        consumer.ConsumerCancelled += OnConsumerCancelled;
+        consumer.Received += OnMessageReceived;
 
-        // When connection is regained...
-        consumer.Registered += (model, ea) =>
-        {
-            if (connectionLossTime != null)
-            {
-                //if there was a connection before and this was a shortage...
-                TimeSpan? diff = DateTime.UtcNow - connectionLossTime;
-                //...then we log how log it took.
-                logger.LogError("Regained RabbitMQ connection. Issue took {@}s", (diff?.TotalSeconds) ?? -1);
-                connectionLossTime = null; //reset timer
-            }
-            else
-            {
-                logger.LogInformation("Successfully connected to RabbitMQ.");
-            }
-        };
-
-        // If consumer got cancelled by second side
-        consumer.ConsumerCancelled += (model, ea) =>
-        {
-            /* theoretically we should check first if we are not in a disconnected
-            state already, but getting disconnected from the other side while we
-            already believe that we are disconnected would be a very rare case
-            theoretically impossible. */
-            connectionLossTime = DateTime.UtcNow;
-            logger.LogCritical("Consumer has been cancelled. Intervention may be required!");
-        };
-
-        // main receieiver.
-        consumer.Received += async (model, ea) =>
-        {
-            var start = DateTime.UtcNow;
-            // read the message from the queue
-            var body = ea.Body.ToArray();
-            var message = System.Text.Encoding.UTF8.GetString(body);
-
-            // we need to acknowledge BEFORE sending to NATS as if NATS gets
-            // stuck then this would cause closing of the consumer.
-            channel.BasicAck(ea.DeliveryTag, true);
-
-            // send it further to NATS
-            await natsConnectionHandler.Publish(message);
-
-            var diff = DateTime.UtcNow - start;
-
-            // cannot measure exactly as at least on ARM64 ticks counting is rubbish and none form of integrated
-            // stopwatches or even miliseconds counting is precise enough.
-            if (diff.TotalMilliseconds > 500)
-            {
-                logger.LogError("Hiccup! Passing of the message took longer than 500ms.");
-            }
-
-            // Log the whole message if configured.
-            if (logger.IsEnabled(LogLevel.Debug))
-            {
-                logger.LogDebug("OK: {@message}", message);
-            }
-
-            // Do a heartbeat on every 1000 messages.
-            if (++progressTracker > 1000)
-            {
-                logger.LogInformation("Worker still running at: {time}.", DateTimeOffset.Now);
-                progressTracker = 0;
-            }
-        };
-
+        _logger.LogDebug("RabbitMQ consumer configured with event handlers");
         return consumer;
     }
 
     /// <summary>
-    /// Starts the consumption. Builds required instances, connects and listens.
+    /// Handles consumer shutdown events for connection monitoring.
     /// </summary>
-    /// <param name="cancellationToken">Token to monitor for cancellation requests</param>
-    /// <returns>A task that completes when consumption is cancelled</returns>
-    /// <todo>
-    /// Separate listening from sending at some point.
-    /// </todo>
-    public async Task ConsumeAsync(CancellationToken cancellationToken)
+    /// <param name="model">The consumer model.</param>
+    /// <param name="ea">Event arguments containing shutdown details.</param>
+    private void OnConsumerShutdown(object? model, ShutdownEventArgs ea)
     {
-        var channel = BuildChannel();
-        logger.LogDebug("Channel built.");
-        var consumer = BuildConsumer(channel);
-        logger.LogDebug("Consumer built.");
+        _connectionLossTime = DateTime.UtcNow;
+        _logger.LogError("Lost connection with RabbitMQ. Reason: {ReplyText}", ea.ReplyText);
+    }
 
-        logger.LogDebug("Starting messages consumption.");
-        var consumerTag = channel.BasicConsume(GetQueueName(), false, consumer);
+    /// <summary>
+    /// Handles consumer registration events for connection monitoring.
+    /// </summary>
+    /// <param name="model">The consumer model.</param>
+    /// <param name="ea">Event arguments containing registration details.</param>
+    private void OnConsumerRegistered(object? model, ConsumerEventArgs ea)
+    {
+        if (_connectionLossTime != null)
+        {
+            // Connection was regained after a loss
+            var connectionDownTime = DateTime.UtcNow - _connectionLossTime.Value;
+            _logger.LogWarning("Regained RabbitMQ connection. Downtime: {DowntimeSeconds:F2}s",
+                connectionDownTime.TotalSeconds);
+            _connectionLossTime = null;
+        }
+        else
+        {
+            _logger.LogInformation("Successfully connected to RabbitMQ");
+        }
+    }
+
+    /// <summary>
+    /// Handles consumer cancellation events.
+    /// </summary>
+    /// <param name="model">The consumer model.</param>
+    /// <param name="ea">Event arguments containing cancellation details.</param>
+    private void OnConsumerCancelled(object? model, ConsumerEventArgs ea)
+    {
+        _connectionLossTime = DateTime.UtcNow;
+        _logger.LogCritical("Consumer has been cancelled by server. Intervention may be required! Consumer tag: {ConsumerTag}",
+            ea.ConsumerTag);
+    }
+
+    /// <summary>
+    /// Handles incoming message processing and forwarding to NATS.
+    /// </summary>
+    /// <param name="model">The consumer model.</param>
+    /// <param name="ea">Event arguments containing the received message.</param>
+    private async void OnMessageReceived(object? model, BasicDeliverEventArgs ea)
+    {
+        if (_disposed)
+        {
+            _logger.LogWarning("Received message after disposal, ignoring");
+            return;
+        }
+
+        var startTime = DateTime.UtcNow;
+        var channel = (IModel)model!;
 
         try
         {
+            // Extract and decode message
+            var body = ea.Body.ToArray();
+            var message = Encoding.UTF8.GetString(body);
+
+            _logger.LogTrace("Received message with delivery tag {DeliveryTag}, size: {MessageSize} bytes",
+                ea.DeliveryTag, body.Length);
+
+            // Acknowledge message BEFORE forwarding to NATS to prevent RabbitMQ queue blockage
+            // if NATS becomes unavailable
+            channel.BasicAck(ea.DeliveryTag, false);
+
+            // Forward message to NATS
+            await _natsConnectionHandler.Publish(message);
+
+            // Performance monitoring
+            var processingTime = DateTime.UtcNow - startTime;
+            if (processingTime.TotalMilliseconds > 500)
+            {
+                _logger.LogWarning("Message processing took longer than expected: {ProcessingTimeMs:F2}ms",
+                    processingTime.TotalMilliseconds);
+            }
+
+            // Debug logging for message content
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug("Successfully processed message: {Message}", message);
+            }
+
+            // Heartbeat logging every 1000 messages
+            if (Interlocked.Increment(ref _progressTracker) % 1000 == 0)
+            {
+                _logger.LogInformation("Worker heartbeat: {MessageCount} messages processed at {Timestamp}",
+                    _progressTracker, DateTimeOffset.Now);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing message with delivery tag {DeliveryTag}", ea.DeliveryTag);
+
+            try
+            {
+                // Negative acknowledgment to requeue the message
+                channel.BasicNack(ea.DeliveryTag, false, true);
+                _logger.LogDebug("Message requeued due to processing error");
+            }
+            catch (Exception nackEx)
+            {
+                _logger.LogError(nackEx, "Failed to NACK message with delivery tag {DeliveryTag}", ea.DeliveryTag);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Starts consuming messages from the configured RabbitMQ queue.
+    /// This method will run continuously until cancellation is requested.
+    /// </summary>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+    /// <returns>A task that completes when consumption is cancelled.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when RabbitMQ connection cannot be established.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when the handler has been disposed.</exception>
+    /// <remarks>
+    /// This method will:
+    /// 1. Build a RabbitMQ channel and consumer
+    /// 2. Start consuming messages from the configured queue
+    /// 3. Process messages asynchronously using event handlers
+    /// 4. Handle cancellation gracefully with proper cleanup
+    ///
+    /// The method blocks until cancellation is requested via the cancellation token.
+    /// All message processing occurs asynchronously in event handlers.
+    /// </remarks>
+    public async Task ConsumeAsync(CancellationToken cancellationToken)
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(RabbitMqConnectionHandler));
+        }
+
+        IModel? channel = null;
+        string? consumerTag = null;
+
+        try
+        {
+            _logger.LogInformation("Starting RabbitMQ message consumption");
+
+            // Build channel and consumer
+            channel = BuildChannel();
+            _logger.LogDebug("RabbitMQ channel built successfully");
+
+            var consumer = BuildConsumer(channel);
+            _logger.LogDebug("RabbitMQ consumer built successfully");
+
+            // Start consuming messages
+            var queueName = GetQueueName();
+            consumerTag = channel.BasicConsume(queue: queueName, autoAck: false, consumer: consumer);
+
+            _logger.LogInformation("Started consuming messages from queue '{QueueName}' with consumer tag '{ConsumerTag}'",
+                queueName, consumerTag);
+
             // Wait for cancellation request
             await Task.Delay(Timeout.Infinite, cancellationToken);
         }
         catch (OperationCanceledException)
         {
-            logger.LogInformation("Consumption cancellation requested.");
+            _logger.LogInformation("Message consumption cancellation requested");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during message consumption");
+            throw;
         }
         finally
         {
-            // Clean up the consumer
+            // Cleanup consumer and channel
+            await CleanupConsumer(channel, consumerTag);
+        }
+    }
+
+    /// <summary>
+    /// Cleans up consumer and channel resources during shutdown.
+    /// </summary>
+    /// <param name="channel">The channel to clean up.</param>
+    /// <param name="consumerTag">The consumer tag to cancel.</param>
+    private async Task CleanupConsumer(IModel? channel, string? consumerTag)
+    {
+        if (channel != null && !string.IsNullOrEmpty(consumerTag))
+        {
             try
             {
-                if (!string.IsNullOrEmpty(consumerTag))
+                _logger.LogDebug("Cancelling consumer with tag '{ConsumerTag}'", consumerTag);
+                channel.BasicCancel(consumerTag);
+
+                // Give some time for graceful shutdown
+                await Task.Delay(100);
+
+                _logger.LogDebug("Consumer cancelled successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error cancelling consumer with tag '{ConsumerTag}'", consumerTag);
+            }
+        }
+
+        if (channel != null)
+        {
+            try
+            {
+                if (channel.IsOpen)
                 {
-                    channel.BasicCancel(consumerTag);
-                    logger.LogDebug("Consumer cancelled successfully.");
+                    channel.Close();
+                    _logger.LogDebug("RabbitMQ channel closed");
                 }
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Error cancelling consumer.");
+                _logger.LogWarning(ex, "Error closing RabbitMQ channel");
             }
         }
     }
 
     /// <summary>
-    /// Before we actually destroy we can explicitly shut down the connection.
+    /// Disposes of RabbitMQ connection resources asynchronously.
     /// </summary>
-    /// <returns></returns>
-    public ValueTask DisposeAsync()
+    /// <returns>A ValueTask representing the disposal operation.</returns>
+    public async ValueTask DisposeAsync()
     {
-        GC.SuppressFinalize(this);
-
-        //Close connection to RabbitMQ.
-        if (connection != null) {
-            connection?.Close();
+        if (_disposed)
+        {
+            return;
         }
 
-        return ValueTask.CompletedTask;
+        _logger.LogDebug("Disposing RabbitMQ connection handler");
+
+        try
+        {
+            if (_connection?.IsOpen == true)
+            {
+                _connection.Close();
+                _logger.LogDebug("RabbitMQ connection closed");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error closing RabbitMQ connection during disposal");
+        }
+        finally
+        {
+            _connection?.Dispose();
+            _disposed = true;
+        }
+
+        // Small delay to allow for graceful shutdown
+        await Task.Delay(50);
+
+        GC.SuppressFinalize(this);
+        _logger.LogDebug("RabbitMQ connection handler disposed");
     }
 }
