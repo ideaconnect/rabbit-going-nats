@@ -1,4 +1,6 @@
-na/// <summary>
+namespace RabbitGoingNats.Service;
+
+/// <summary>
 /// Interface for NATS connection handling operations.
 ///
 /// This interface defines the contract for NATS messaging operations within the application.
@@ -15,25 +17,7 @@ na/// <summary>
 /// - Error handling and logging
 /// - Graceful shutdown and resource cleanup
 /// </summary>
-public interface INatsConnectionHandler : IAsyncDisposablengNats.Service;
-
-/// <summary>
-/// Interface for NATS connection handling operations.
-///
-/// This interface defines the contract for NATS messaging operations within the application.
-/// It abstracts the NATS client functionality to enable:
-/// - Dependency injection and loose coupling
-/// - Easy unit testing with mock implementations
-/// - Future extensibility for additional NATS operations
-/// - Clean separation between NATS-specific logic and business logic
-///
-/// Implementations should handle:
-/// - Connection management and reconnection logic
-/// - Message serialization and publishing
-/// - Error handling and logging
-/// - Graceful shutdown and resource cleanup
-/// </summary>
-public interface INatsConnectionHandler
+public interface INatsConnectionHandler : IAsyncDisposable
 {
     /// <summary>
     /// Publishes a message to the configured NATS subject asynchronously.

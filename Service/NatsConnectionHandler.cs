@@ -79,22 +79,11 @@ public class NatsConnectionHandler : INatsConnectionHandler, IAsyncDisposable
     private readonly string replyTopic;
 
     /// <summary>
-    /// Timestamp tracking when NATS connection was lost (if applicable).
-    ///
-    /// This field is used to measure the duration of connection outages for
-    /// monitoring and alerting purposes. When a connection is lost, this field
-    /// stores the UTC timestamp. When the connection is restored, the duration
-    /// is calculated and logged.
-    ///
-    /// Null value indicates the connection is currently active or no loss has occurred.
-    ///
-    /// Thread Safety:
-    /// This field is marked as volatile to ensure thread-safe access across
-    /// multiple threads. The NATS client event handlers may be called from
-    /// different threads, so volatile ensures proper memory visibility and
-    /// prevents instruction reordering optimizations that could cause race conditions.
+    /// Timestamp tracking when connection was lost for monitoring purposes.
+    /// Uses object for thread-safe nullable DateTime operations.
     /// </summary>
-    private volatile DateTime? connectionLossTime;
+    private readonly object _connectionLossTimeLock = new();
+    private DateTime? _connectionLossTime;
 
     /// <summary>
     /// Initializes a new instance of the NatsConnectionHandler with configuration and logging.
@@ -332,8 +321,11 @@ public class NatsConnectionHandler : INatsConnectionHandler, IAsyncDisposable
         {
             // Record the exact time of connection loss for duration tracking
             // This helps with SLA monitoring and troubleshooting
-            // Using volatile field ensures thread-safe access
-            connectionLossTime = DateTime.UtcNow;
+            // Using lock ensures thread-safe access
+            lock (_connectionLossTimeLock)
+            {
+                _connectionLossTime = DateTime.UtcNow;
+            }
             logger.LogError("NATS connection lost. Attempting automatic reconnection...");
             return ValueTask.CompletedTask;
         };
@@ -341,8 +333,14 @@ public class NatsConnectionHandler : INatsConnectionHandler, IAsyncDisposable
         // Handle connection restoration events with duration reporting
         client.Connection.ConnectionOpened += (m, e) =>
         {
-            // Thread-safe read of volatile field
-            var lossTime = connectionLossTime;
+            // Thread-safe read and reset of connection loss time
+            DateTime? lossTime;
+            lock (_connectionLossTimeLock)
+            {
+                lossTime = _connectionLossTime;
+                _connectionLossTime = null; // Reset the outage tracking
+            }
+
             if (lossTime != null)
             {
                 // Calculate and log the duration of the connection outage
@@ -350,9 +348,6 @@ public class NatsConnectionHandler : INatsConnectionHandler, IAsyncDisposable
                 TimeSpan outageTime = DateTime.UtcNow - lossTime.Value;
                 logger.LogInformation("NATS connection restored. Outage duration: {duration:F2}s",
                     outageTime.TotalSeconds);
-
-                // Reset the outage tracking with thread-safe assignment
-                connectionLossTime = null;
             }
             else
             {

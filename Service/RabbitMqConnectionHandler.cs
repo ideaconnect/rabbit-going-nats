@@ -64,8 +64,10 @@ public class RabbitMqConnectionHandler(
 
     /// <summary>
     /// Timestamp tracking when connection was lost for monitoring purposes.
+    /// Uses object for thread-safe nullable DateTime operations.
     /// </summary>
-    private volatile DateTime? _connectionLossTime;
+    private readonly object _connectionLossTimeLock = new();
+    private DateTime? _connectionLossTime;
 
     /// <summary>
     /// Progress counter for heartbeat logging every 1000 messages.
@@ -174,7 +176,10 @@ public class RabbitMqConnectionHandler(
     /// <param name="ea">Event arguments containing shutdown details.</param>
     private void OnConsumerShutdown(object? model, ShutdownEventArgs ea)
     {
-        _connectionLossTime = DateTime.UtcNow;
+        lock (_connectionLossTimeLock)
+        {
+            _connectionLossTime = DateTime.UtcNow;
+        }
         _logger.LogError("Lost connection with RabbitMQ. Reason: {ReplyText}", ea.ReplyText);
     }
 
@@ -185,13 +190,19 @@ public class RabbitMqConnectionHandler(
     /// <param name="ea">Event arguments containing registration details.</param>
     private void OnConsumerRegistered(object? model, ConsumerEventArgs ea)
     {
-        if (_connectionLossTime != null)
+        DateTime? lossTime;
+        lock (_connectionLossTimeLock)
+        {
+            lossTime = _connectionLossTime;
+            _connectionLossTime = null; // Reset after reading
+        }
+
+        if (lossTime != null)
         {
             // Connection was regained after a loss
-            var connectionDownTime = DateTime.UtcNow - _connectionLossTime.Value;
+            var connectionDownTime = DateTime.UtcNow - lossTime.Value;
             _logger.LogWarning("Regained RabbitMQ connection. Downtime: {DowntimeSeconds:F2}s",
                 connectionDownTime.TotalSeconds);
-            _connectionLossTime = null;
         }
         else
         {
@@ -206,9 +217,11 @@ public class RabbitMqConnectionHandler(
     /// <param name="ea">Event arguments containing cancellation details.</param>
     private void OnConsumerCancelled(object? model, ConsumerEventArgs ea)
     {
-        _connectionLossTime = DateTime.UtcNow;
-        _logger.LogCritical("Consumer has been cancelled by server. Intervention may be required! Consumer tag: {ConsumerTag}",
-            ea.ConsumerTag);
+        lock (_connectionLossTimeLock)
+        {
+            _connectionLossTime = DateTime.UtcNow;
+        }
+        _logger.LogCritical("Consumer has been cancelled by server. Intervention may be required!");
     }
 
     /// <summary>
@@ -225,7 +238,19 @@ public class RabbitMqConnectionHandler(
         }
 
         var startTime = DateTime.UtcNow;
-        var channel = (IModel)model!;
+        
+        // Get the channel from the consumer (AOT-safe approach)
+        IModel? channel = null;
+        if (model is EventingBasicConsumer consumer)
+        {
+            channel = consumer.Model;
+        }
+        
+        if (channel == null)
+        {
+            _logger.LogError("Unable to get channel from consumer model: {ModelType}", model?.GetType().Name ?? "null");
+            return;
+        }
 
         try
         {
