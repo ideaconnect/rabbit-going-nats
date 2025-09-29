@@ -46,7 +46,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         // Triggers AOT warnings, yet for NET 8+ workaround is actually not needed.
         services.Configure<RabbitMqConnection>(configuration.GetSection("RabbitMq"));
         services.Configure<NatsConnection>(configuration.GetSection("Nats"));
-        
+
         // Add configuration validation
         services.PostConfigure<RabbitMqConnection>(options =>
         {
@@ -64,11 +64,11 @@ IHost host = Host.CreateDefaultBuilder(args)
                 throw new InvalidOperationException("NATS Url is required and cannot be empty");
             if (string.IsNullOrWhiteSpace(options.Subject))
                 throw new InvalidOperationException("NATS Subject is required and cannot be empty");
-            if (!Uri.TryCreate(options.Url, UriKind.Absolute, out var uri) || 
+            if (!Uri.TryCreate(options.Url, UriKind.Absolute, out var uri) ||
                 (uri.Scheme != "nats" && uri.Scheme != "nats+tls"))
                 throw new InvalidOperationException("NATS Url must be a valid URI with 'nats://' or 'nats+tls://' scheme");
         });
-        
+
         services.AddSingleton<INatsConnectionHandler, NatsConnectionHandler>();
         services.AddSingleton<IRabbitMqConnectionHandler, RabbitMqConnectionHandler>();
         services.AddHostedService<Worker>();
