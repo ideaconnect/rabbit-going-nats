@@ -6,4 +6,7 @@ rabbit-going-nats-tests/obj/
 rabbit-going-nats-tests/CoverageReport/
 rabbit-going-nats-tests/coverage-report/
 rabbit-going-nats-tests/TestResults/
+simple-feature-test/test-log/
+simple-feature-test/bin/
+simple-feature-test/docker/
 .cache
