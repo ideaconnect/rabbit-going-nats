@@ -1,81 +1,206 @@
-name: Build ARM64 and AMD64 binaries.
+name: Build and Test Multi-Architecture Binaries
 
 on:
   push:
+    branches: [ "main", "aot-casting" ]
+  pull_request:
     branches: [ "main" ]
   workflow_dispatch: ~
 
+env:
+  DOTNET_VERSION: '9.0.x'
+  PROJECT_PATH: 'rabbit-going-nats'
+  TEST_PROJECT_PATH: 'rabbit-going-nats-tests'
+
 jobs:
-  ARM64:
-    name: Build ARM64 binary (Until GitHub adds public ARM64 runs on IDCT-DRAGON).
-    runs-on: [self-hosted, linux, ARM64]
-    permissions:
-      packages: write
-      contents: read
-      attestations: write
-      id-token: write
-    steps:
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Check out the repo
-        uses: actions/checkout@v4
-
-      - name: Build builder
-        run: docker build -t rabbit-going-nats/builder --platform linux/arm64 builder/
-
-      - name: Build ARM64 binary
-        run: docker run --rm -w /app -v ./:/app --platform linux/arm64 rabbit-going-nats/builder dotnet publish
-
-      - name: Prepare test
-        run: ./setup-test.sh
-
-      - name: Run app in the background
-        run: nohup bin/Release/net8.0/linux-arm64/publish/RabbitGoingNats &
-
-      - name: Run test
-        run: ./run-test.sh
-
-      - name: Store ARM64 binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: arm64-binary
-          path: bin/Release/net8.0/linux-arm64/publish/
-          compression-level: 9 # maximum compression
-
-  AMD64:
-    name: Build AMD binary.
+  test-and-coverage:
+    name: Run Tests and Coverage Analysis
     runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: read
-      attestations: write
-      id-token: write
     steps:
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Check out the repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build builder
-        run: docker build -t rabbit-going-nats/builder --platform linux/amd64 builder/
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Build AMD64 binary
-        run: docker run --rm -w /app -v ./:/app --platform linux/amd64 rabbit-going-nats/builder dotnet publish
+      - name: Restore dependencies
+        run: |
+          dotnet restore ${{ env.PROJECT_PATH }}
+          dotnet restore ${{ env.TEST_PROJECT_PATH }}
 
-      - name: Prepare test
-        run: ./setup-test.sh
+      - name: Build application
+        run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
 
-      - name: Run app in the background
-        run: nohup bin/Release/net8.0/linux-x64/publish/RabbitGoingNats &
+      - name: Build test project
+        run: dotnet build ${{ env.TEST_PROJECT_PATH }} --configuration Release --no-restore
 
-      - name: Run test
-        run: ./run-test.sh
+      - name: Run unit and integration tests with coverage
+        run: |
+          cd ${{ env.TEST_PROJECT_PATH }}
+          dotnet test --configuration Release --no-build --verbosity normal \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./TestResults/ \
+            --logger trx \
+            --logger "console;verbosity=detailed"
 
-      - name: Store AMD64 binary
+      - name: Generate coverage report
+        run: |
+          cd ${{ env.TEST_PROJECT_PATH }}
+          dotnet tool install -g dotnet-reportgenerator-globaltool
+          reportgenerator \
+            -reports:"./TestResults/*/coverage.cobertura.xml" \
+            -targetdir:"./CoverageReport" \
+            -reporttypes:"Html;Cobertura;JsonSummary" \
+            -verbosity:Info
+
+      - name: Check coverage threshold
+        run: |
+          cd ${{ env.TEST_PROJECT_PATH }}
+          COVERAGE=$(grep -o '"linecoverage":[0-9.]*' ./CoverageReport/Summary.json | cut -d':' -f2)
+          echo "Line coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 65" | bc -l) )); then
+            echo "❌ Coverage ${COVERAGE}% is below required 65%"
+            exit 1
+          else
+            echo "✅ Coverage ${COVERAGE}% meets requirement (≥65%)"
+          fi
+
+      - name: Upload coverage reports
         uses: actions/upload-artifact@v4
         with:
-          name: amd64-binary
-          path: bin/Release/net8.0/linux-x64/publish/
-          compression-level: 9 # maximum compression
+          name: coverage-report
+          path: ${{ env.TEST_PROJECT_PATH }}/CoverageReport/
+          retention-days: 30
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: ${{ env.TEST_PROJECT_PATH }}/TestResults/
+          retention-days: 30
+
+  integration-test:
+    name: End-to-End Integration Tests
+    runs-on: ubuntu-latest
+    needs: test-and-coverage
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build application for testing
+        run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release
+
+      - name: Run simple-feature-test
+        run: |
+          cd simple-feature-test
+          make all
+        timeout-minutes: 10
+
+      - name: Upload integration test logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-logs
+          path: simple-feature-test/test-log/
+          retention-days: 7
+
+  build-linux-amd64:
+    name: Build Linux AMD64
+    runs-on: ubuntu-latest
+    needs: [test-and-coverage, integration-test]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Publish Linux AMD64
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            --output ./artifacts/linux-amd64/ \
+            -p:PublishAot=true \
+            -p:StripSymbols=true
+
+      - name: Upload Linux AMD64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rabbit-going-nats-linux-amd64
+          path: ./artifacts/linux-amd64/
+          compression-level: 9
+          retention-days: 90
+
+  build-linux-arm64:
+    name: Build Linux ARM64
+    runs-on: ubuntu-latest
+    needs: [test-and-coverage, integration-test]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.PROJECT_PATH }}
+
+      - name: Publish Linux ARM64
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} \
+            --configuration Release \
+            --runtime linux-arm64 \
+            --self-contained true \
+            --output ./artifacts/linux-arm64/ \
+            -p:PublishAot=true \
+            -p:StripSymbols=true
+
+      - name: Upload Linux ARM64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rabbit-going-nats-linux-arm64
+          path: ./artifacts/linux-arm64/
+          compression-level: 9
+          retention-days: 90
+
+  create-release-summary:
+    name: Create Release Summary
+    runs-on: ubuntu-latest
+    needs: [test-and-coverage, integration-test, build-linux-amd64, build-linux-arm64]
+    if: always()
+    steps:
+      - name: Create summary
+        run: |
+          echo "# 🚀 Build and Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Unit and Integration Tests: ${{ needs.test-and-coverage.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ End-to-End Integration: ${{ needs.integration-test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 📈 Coverage Requirement: ≥65%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🏗️ Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "- 🐧 Linux AMD64: ${{ needs.build-linux-amd64.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🐧 Linux ARM64: ${{ needs.build-linux-arm64.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📦 Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- \`rabbit-going-nats-linux-amd64\` - Native AOT binary for x64" >> $GITHUB_STEP_SUMMARY
+          echo "- \`rabbit-going-nats-linux-arm64\` - Native AOT binary for ARM64" >> $GITHUB_STEP_SUMMARY
+          echo "- \`coverage-report\` - HTML and detailed coverage analysis" >> $GITHUB_STEP_SUMMARY
+          echo "- \`test-results\` - Detailed test execution results" >> $GITHUB_STEP_SUMMARY
