@@ -50,19 +50,35 @@ rabbit-going-nats/
 # Installation
 
 Application supports any .NET compatible environment. May be executed as .NET
-CLR application with .NET 8+ Runtime or precompiled to a standalone native
+CLR application with .NET 9+ Runtime or precompiled to a standalone native
 binary using the NativeAOT functionality.
 
-Repository features two precompiled applications:
-* Native Linux AMD64 (as this is the most popular environment)
-* Native Linux ARM64 (as this is my environment)
+## Supported Platforms
 
-You may compile for your environment using simply `dotnet publish` command.
+**Officially supported and tested platforms:**
+- 🐧 **Linux AMD64** - Native AOT binary provided via CI/CD
+- 🐧 **Linux ARM64** - Native AOT binary provided via CI/CD
 
-To run the application just:
-1) compile yourself or download the binary from latest Release.
-2) place the binary in a desired folder.
-3) create appsettings.json as instructed below.
+**Unofficially supported platforms:**
+- 🪟 **Windows** (x64/ARM64) - Should build and run, but not officially supported
+- 🍎 **macOS** (ARM64) - Should build and run, but not officially supported
+
+> **Note**: This is primarily server-side infrastructure software designed for Linux environments. While .NET's cross-platform nature should allow builds for Windows and macOS, these platforms are not officially tested or supported. Community contributions for other platforms are welcome!
+
+## Pre-built Binaries
+
+Repository provides automated builds for:
+* **Native Linux AMD64** - Optimized for x64 server environments
+* **Native Linux ARM64** - Optimized for ARM64 server environments (Snapdragon, Raspberry Pi, etc.)
+
+You may compile for your specific environment using `dotnet publish` command.
+
+## Installation Steps
+
+To run the application:
+1) Download the binary from latest Release or compile yourself
+2) Place the binary in a desired folder
+3) Create appsettings.json as instructed below
 
 NOTE: I personally suggest to run this using **supervisor** to be sure it gets
 restarted in case of any failure.
