@@ -1,6 +1,22 @@
 # Code Coverage for RabbitGoingNats Tests
 
-This project now includes comprehensive code coverage reporting for the NatsConnection model tests.
+This project includes comprehensive code coverage reporting for the model tests with well-organized test structure.
+
+## 📁 Test Organization
+
+The tests are organized following .NET best practices:
+
+```
+Tests/
+├── Model/
+│   ├── NatsConnectionTests.cs      - Tests for NatsConnection model
+│   └── RabbitMqConnectionTests.cs  - Tests for RabbitMqConnection model
+└── (Future test categories)
+    ├── Service/                    - For service layer tests
+    └── Integration/                - For integration tests
+```
+
+Each model has its own dedicated test class with comprehensive coverage.
 
 ## 🚀 Quick Start
 
