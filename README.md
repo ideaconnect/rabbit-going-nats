@@ -1,6 +1,8 @@
 Rabbit-Going-NATS
 =================
 
+[![Build and Test](https://github.com/ideaconnect/rabbit-going-nats/actions/workflows/build-binaries.yml/badge.svg?branch=main)](https://github.com/ideaconnect/rabbit-going-nats/actions/workflows/build-binaries.yml)
+
 Tool which allows to passthrough messages fetched from RabbitMQ's queue to NATS
 PubSub. Useful if you receive a data feed through RabbitMQ, but you need to
 redistribute it further to multiple clients in the most efficient way.
@@ -9,22 +11,74 @@ Allows to create an infrastructure as in the diagram below:
 
 ![PubSub schema image](.github/diagram.png "PubSub Schema Image")
 
+# Project Structure
+
+The project is organized into the following structure:
+
+```
+rabbit-going-nats/
+├── rabbit-going-nats/          # Main application
+│   ├── Program.cs               # Application entry point and DI configuration
+│   ├── Worker.cs                # Background service for message processing
+│   ├── Model/                   # Configuration models
+│   │   ├── RabbitMqConnection.cs
+│   │   ├── NatsConnection.cs
+│   │   ├── WebServiceConfiguration.cs
+│   │   └── ApiJsonSerializerContext.cs  # AOT-compatible JSON serialization
+│   └── Service/                 # Core services
+│       ├── IRabbitMqConnectionHandler.cs
+│       ├── RabbitMqConnectionHandler.cs
+│       ├── INatsConnectionHandler.cs
+│       ├── NatsConnectionHandler.cs
+│       ├── IMessageStatisticsService.cs  # Message statistics tracking
+│       ├── MessageStatisticsService.cs
+│       ├── IWebMonitoringService.cs      # HTTP monitoring service
+│       └── WebMonitoringService.cs
+├── rabbit-going-nats-tests/     # Test project
+│   └── Tests/
+│       ├── Integration/          # Integration tests
+│       ├── Model/               # Model tests
+│       └── Service/             # Service unit tests
+└── simple-feature-test/         # End-to-end testing with Docker
+    ├── Makefile                 # Automated testing pipeline
+    ├── setup-test.sh
+    ├── run-test.sh
+    └── nats/
+        └── nats-server.conf
+```
+
 # Installation
 
 Application supports any .NET compatible environment. May be executed as .NET
-CLR application with .NET 8+ Runtime or precompiled to a standalone native
+CLR application with .NET 9+ Runtime or precompiled to a standalone native
 binary using the NativeAOT functionality.
 
-Repository features two precompiled applications:
-* Native Linux AMD64 (as this is the most popular environment)
-* Native Linux ARM64 (as this is my environment)
+## Supported Platforms
 
-You may compile for your environment using simply `dotnet publish` command.
+**Officially supported and tested platforms:**
+- 🐧 **Linux AMD64** - Native AOT binary provided via CI/CD
+- 🐧 **Linux ARM64** - Native AOT binary provided via CI/CD
 
-To run the application just:
-1) compile yourself or download the binary from latest Release.
-2) place the binary in a desired folder.
-3) create appsettings.json as instructed below.
+**Unofficially supported platforms:**
+- 🪟 **Windows** (x64/ARM64) - Should build and run, but not officially supported
+- 🍎 **macOS** (ARM64) - Should build and run, but not officially supported
+
+> **Note**: This is primarily server-side infrastructure software designed for Linux environments. While .NET's cross-platform nature should allow builds for Windows and macOS, these platforms are not officially tested or supported. Community contributions for other platforms are welcome!
+
+## Pre-built Binaries
+
+Repository provides automated builds for:
+* **Native Linux AMD64** - Optimized for x64 server environments
+* **Native Linux ARM64** - Optimized for ARM64 server environments (Snapdragon, Raspberry Pi, etc.)
+
+You may compile for your specific environment using `dotnet publish` command.
+
+## Installation Steps
+
+To run the application:
+1) Download the binary from latest Release or compile yourself
+2) Place the binary in a desired folder
+3) Create appsettings.json as instructed below
 
 NOTE: I personally suggest to run this using **supervisor** to be sure it gets
 restarted in case of any failure.
@@ -48,6 +102,11 @@ standard `appsettings.json` in the workdir:
         "Url": "nats://localhost:4222",
         "Subject": "test-subject",
         "Secret": "s3cr3t"
+    },
+    "WebService": {
+        "Enabled": true,
+        "Host": "localhost",
+        "Port": 8018
     }
 }
 ```
@@ -129,28 +188,183 @@ https://nlog-project.org/config/
 
 Warning: this build includes Sentry.IO logging target support.
 
-# Any form of testing at the moment?
+# Web Monitoring Service
 
-If you have Docker installed you may launch first:
+The application includes a built-in HTTP monitoring service that provides real-time statistics about message processing. This lightweight service uses `HttpListener` for minimal overhead.
 
-1. `setup-test.sh` which will create an instance of RabbitMQ, queue and NATS.
-2. build: `dotnet publish`
-3. run the binary with config from `appsettings.json.dist` (place it in the same
-folder and rename ot appsettings.json).
-4. execute `run-test.sh` which will send few messages to the queue.
+## Configuration
 
-Proper tests are in the TODOs.
+The web service is configured in the `WebService` section of `appsettings.json`:
+
+```json
+{
+    "WebService": {
+        "Enabled": true,
+        "Host": "localhost",
+        "Port": 8018
+    }
+}
+```
+
+- `Enabled`: Whether the web service is active (default: `true`)
+- `Host`: The hostname to bind to (default: `"localhost"`)
+- `Port`: The port to listen on (default: `8018`)
+
+## Available Endpoints
+
+### Health Check
+- **GET** `/health`
+- Returns service health status
+- Response:
+  ```json
+  {
+      "status": "healthy",
+      "timestamp": "2025-09-30T10:15:30.123Z",
+      "service": "RabbitGoingNats"
+  }
+  ```
+
+### Message Statistics
+- **GET** `/stats` or **GET** `/statistics` or **GET** `/`
+- Returns real-time message processing statistics
+- Response:
+  ```json
+  {
+      "lastMessageReceived": "2025-09-30T10:15:29.456Z",
+      "lastMessageSent": "2025-09-30T10:15:29.458Z",
+      "messagesPerMinute": 42,
+      "messagesInLastHour": 2520
+  }
+  ```
+
+## Features
+
+- **Thread-safe**: Concurrent message statistics tracking
+- **CORS-enabled**: Accessible from web browsers
+- **AOT-compatible**: Uses source generators for optimal performance
+- **Rolling statistics**: Automatic cleanup of old data
+- **Lightweight**: Uses `HttpListener` for minimal resource usage
+
+## Usage Examples
+
+```bash
+# Check service health
+curl http://localhost:8018/health
+
+# Get message statistics
+curl http://localhost:8018/stats
+
+# Pretty-print JSON response
+curl -s http://localhost:8018/stats | jq
+```
+
+# Testing
+
+The project includes comprehensive testing infrastructure with multiple test types and automation.
+
+## Test Structure
+
+### Unit Tests
+Located in `rabbit-going-nats-tests/Tests/Service/`:
+- **MessageStatisticsServiceTests.cs**: Statistics tracking and thread safety
+- **WebMonitoringServiceTests.cs**: HTTP service functionality
+- **NatsConnectionHandlerTests.cs**: NATS connection and message publishing
+- **RabbitMqConnectionHandlerTests.cs**: RabbitMQ connection and consumption
+- **WorkerTests.cs**: Background service lifecycle
+
+### Integration Tests
+Located in `rabbit-going-nats-tests/Tests/Integration/`:
+- **ProgramStartupTests.cs**: Application startup and dependency injection
+- **ProgramAdvancedTests.cs**: Advanced configuration scenarios
+- **ProgramConfigurationTests.cs**: Configuration validation
+- **WebMonitoringIntegrationTests.cs**: End-to-end web service testing
+
+### End-to-End Testing
+Automated testing pipeline using Docker containers:
+
+```bash
+# Run complete integration test
+cd simple-feature-test
+make all
+```
+
+This will:
+1. Build the application
+2. Start RabbitMQ and NATS containers
+3. Configure test queue and subjects
+4. Start the application
+5. Test web service endpoints
+6. Send test messages and verify forwarding
+7. Validate message statistics
+8. Clean up containers
+
+## Running Tests
+
+### Unit and Integration Tests
+```bash
+# Run all tests
+cd rabbit-going-nats-tests
+dotnet test
+
+# Run with detailed output
+dotnet test --verbosity normal
+
+# Run specific test category
+dotnet test --filter "Integration"
+dotnet test --filter "MessageStatisticsServiceTests"
+```
+
+### Manual Testing
+If you have Docker installed:
+
+1. **Setup containers**:
+   ```bash
+   cd simple-feature-test
+   ./setup-test.sh
+   ```
+
+2. **Build and run**:
+   ```bash
+   dotnet publish
+   # Copy appsettings.json.dist to appsettings.json
+   dotnet run
+   ```
+
+3. **Send test messages**:
+   ```bash
+   ./run-test.sh
+   ```
+
+4. **Test web endpoints**:
+   ```bash
+   curl http://localhost:8018/health
+   curl http://localhost:8018/stats
+   ```
+
+## Test Coverage
+
+The test suite provides comprehensive coverage including:
+- ✅ **290 tests** covering all major functionality
+- ✅ **Dependency injection** validation
+- ✅ **Configuration validation** with invalid scenarios
+- ✅ **Message flow** from RabbitMQ to NATS
+- ✅ **Statistics tracking** accuracy and thread safety
+- ✅ **Web service** HTTP endpoints and responses
+- ✅ **Error handling** and edge cases
+- ✅ **AOT compatibility** validation
 
 # TODO
 
-* Unit Tests.
-* Functional tests.
-* Utilize the stopping token.
-* Support multiple sources.
-* Support more authorization methods.
-* Strip ExecuteAsync into proper sections, submethods, organise code better.
-* Option to support scripted events: for example to execute a command or
-different application when connection gets regained.
+* ✅ ~~Unit Tests~~ - **Completed**: 290 comprehensive tests
+* ✅ ~~Functional tests~~ - **Completed**: Integration and end-to-end testing
+* ✅ ~~Monitoring/Statistics~~ - **Completed**: Web service with real-time stats
+* Utilize the stopping token for graceful shutdown
+* Support multiple sources (multiple RabbitMQ queues)
+* Support more authorization methods (JWT, certificates)
+* Support message transformation/filtering
+* Option to support scripted events: execute commands on connection events
+* Support for message routing based on content
+* Metrics export (Prometheus, InfluxDB)
 
 # Contribution
 

@@ -12,6 +12,11 @@
         "Subject": "test-subject",
         "Secret": "s3cr3t"
     },
+    "WebService": {
+        "Host": "localhost",
+        "Port": 8018,
+        "Enabled": true
+    },
     "Logging": {
         "NLog": {
             "IncludeScopes": false,
