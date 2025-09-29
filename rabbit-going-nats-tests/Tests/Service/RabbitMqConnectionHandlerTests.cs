@@ -795,7 +795,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public void RabbitMqConnectionHandler_CoverageNote_DocumentUncoveredAreas()
     {
         // This test documents the areas that are difficult to test in unit tests
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -809,7 +809,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Assert - Handler is created successfully
         Assert.NotNull(handler);
-        
+
         // The following areas remain uncovered and require integration testing:
         // 1. Event Handlers (OnConsumerShutdown, OnConsumerRegistered, OnConsumerCancelled, OnMessageReceived)
         //    - These are triggered by actual RabbitMQ server events
@@ -821,7 +821,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         //    - Requires established RabbitMQ consumers
         // 5. Error handling in message processing
         //    - Requires real message processing failures
-        
+
         // These scenarios are best covered through:
         // - Integration tests with real RabbitMQ server
         // - End-to-end testing with message flows
@@ -833,7 +833,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public void GetQueueName_ShouldReturnValidQueueName_UsingReflection()
     {
         // Test the private GetQueueName method using reflection
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -856,7 +856,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public void GetQueueName_ShouldThrowInvalidOperationException_WhenQueueNameIsEmpty_UsingReflection()
     {
         // Test the private GetQueueName method exception path using reflection
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -869,7 +869,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Act & Assert - Use reflection to call private GetQueueName method
         var getQueueNameMethod = typeof(RabbitMqConnectionHandler).GetMethod("GetQueueName", BindingFlags.NonPublic | BindingFlags.Instance);
-        
+
         var exception = Assert.Throws<TargetInvocationException>(() => getQueueNameMethod?.Invoke(handler, null));
         Assert.IsType<InvalidOperationException>(exception.InnerException);
         Assert.Contains("RabbitMQ queue name is not configured", exception.InnerException?.Message);
@@ -879,7 +879,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public void GetQueueName_ShouldThrowInvalidOperationException_WhenQueueNameIsNull_UsingReflection()
     {
         // Test the private GetQueueName method exception path with null using reflection
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -892,7 +892,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Act & Assert - Use reflection to call private GetQueueName method
         var getQueueNameMethod = typeof(RabbitMqConnectionHandler).GetMethod("GetQueueName", BindingFlags.NonPublic | BindingFlags.Instance);
-        
+
         var exception = Assert.Throws<TargetInvocationException>(() => getQueueNameMethod?.Invoke(handler, null));
         Assert.IsType<InvalidOperationException>(exception.InnerException);
         Assert.Contains("RabbitMQ queue name is not configured", exception.InnerException?.Message);
@@ -902,7 +902,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public void GetQueueName_ShouldThrowInvalidOperationException_WhenQueueNameIsWhitespace_UsingReflection()
     {
         // Test the private GetQueueName method exception path with whitespace using reflection
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -915,7 +915,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Act & Assert - Use reflection to call private GetQueueName method
         var getQueueNameMethod = typeof(RabbitMqConnectionHandler).GetMethod("GetQueueName", BindingFlags.NonPublic | BindingFlags.Instance);
-        
+
         var exception = Assert.Throws<TargetInvocationException>(() => getQueueNameMethod?.Invoke(handler, null));
         Assert.IsType<InvalidOperationException>(exception.InnerException);
         Assert.Contains("RabbitMQ queue name is not configured", exception.InnerException?.Message);
@@ -925,7 +925,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public async Task BuildConsumer_ShouldThrowObjectDisposedException_WhenDisposed_UsingReflection()
     {
         // Test the private BuildConsumer method exception path using reflection
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -941,10 +941,10 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Act & Assert - Use reflection to call private BuildConsumer method
         var buildConsumerMethod = typeof(RabbitMqConnectionHandler).GetMethod("BuildConsumer", BindingFlags.NonPublic | BindingFlags.Instance);
-        
+
         // Create a mock channel for the test
         var mockChannel = new Mock<IModel>();
-        
+
         var exception = Assert.Throws<TargetInvocationException>(() => buildConsumerMethod?.Invoke(handler, new object[] { mockChannel.Object }));
         Assert.IsType<ObjectDisposedException>(exception.InnerException);
     }
@@ -953,7 +953,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public void BuildConsumer_ShouldThrowArgumentNullException_WhenChannelIsNull_UsingReflection()
     {
         // Test the private BuildConsumer method null channel exception using reflection
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -966,7 +966,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Act & Assert - Use reflection to call private BuildConsumer method with null channel
         var buildConsumerMethod = typeof(RabbitMqConnectionHandler).GetMethod("BuildConsumer", BindingFlags.NonPublic | BindingFlags.Instance);
-        
+
         var exception = Assert.Throws<TargetInvocationException>(() => buildConsumerMethod?.Invoke(handler, new object[] { null! }));
         Assert.IsType<ArgumentNullException>(exception.InnerException);
     }
@@ -975,7 +975,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public void BuildConsumer_ShouldCreateConsumerWithEventHandlers_UsingReflection()
     {
         // Test the private BuildConsumer method successful path using reflection
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -996,7 +996,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         // Assert
         Assert.NotNull(consumer);
         Assert.Equal(mockChannel.Object, consumer.Model);
-        
+
         // Verify debug logging was called
         VerifyLogCalled(LogLevel.Debug, "RabbitMQ consumer configured with event handlers");
     }
@@ -1005,7 +1005,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public void OnConsumerShutdown_ShouldLogError_UsingReflection()
     {
         // Test the OnConsumerShutdown event handler using reflection
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -1018,7 +1018,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Act - Use reflection to call private OnConsumerShutdown method
         var onConsumerShutdownMethod = typeof(RabbitMqConnectionHandler).GetMethod("OnConsumerShutdown", BindingFlags.NonPublic | BindingFlags.Instance);
-        
+
         var shutdownEventArgs = new ShutdownEventArgs(ShutdownInitiator.Application, 200, "Normal shutdown");
         onConsumerShutdownMethod?.Invoke(handler, new object[] { null!, shutdownEventArgs });
 
@@ -1031,7 +1031,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public void OnConsumerRegistered_ShouldLogInformation_WithoutPreviousLoss_UsingReflection()
     {
         // Test the OnConsumerRegistered event handler without previous connection loss
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -1044,7 +1044,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Act - Use reflection to call private OnConsumerRegistered method
         var onConsumerRegisteredMethod = typeof(RabbitMqConnectionHandler).GetMethod("OnConsumerRegistered", BindingFlags.NonPublic | BindingFlags.Instance);
-        
+
         var consumerEventArgs = new ConsumerEventArgs(new string[] { "test-consumer-tag" });
         onConsumerRegisteredMethod?.Invoke(handler, new object[] { null!, consumerEventArgs });
 
@@ -1056,7 +1056,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public void OnConsumerRegistered_ShouldLogWarning_WithPreviousLoss_UsingReflection()
     {
         // Test the OnConsumerRegistered event handler with previous connection loss
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -1089,7 +1089,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public void OnConsumerCancelled_ShouldLogCritical_UsingReflection()
     {
         // Test the OnConsumerCancelled event handler using reflection
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -1102,7 +1102,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Act - Use reflection to call private OnConsumerCancelled method
         var onConsumerCancelledMethod = typeof(RabbitMqConnectionHandler).GetMethod("OnConsumerCancelled", BindingFlags.NonPublic | BindingFlags.Instance);
-        
+
         var consumerEventArgs = new ConsumerEventArgs(new string[] { "cancelled-consumer-tag" });
         onConsumerCancelledMethod?.Invoke(handler, new object[] { null!, consumerEventArgs });
 
@@ -1115,7 +1115,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public async Task OnMessageReceived_ShouldHandleDisposedState_UsingReflection()
     {
         // Test the OnMessageReceived event handler when disposed
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -1131,10 +1131,10 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Act - Use reflection to call private OnMessageReceived method
         var onMessageReceivedMethod = typeof(RabbitMqConnectionHandler).GetMethod("OnMessageReceived", BindingFlags.NonPublic | BindingFlags.Instance);
-        
+
         var mockChannel = new Mock<IModel>();
         var mockConsumer = new Mock<EventingBasicConsumer>(mockChannel.Object);
-        
+
         var deliveryEventArgs = new BasicDeliverEventArgs
         {
             DeliveryTag = 1,
@@ -1154,7 +1154,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
     public async Task OnMessageReceived_ShouldLogError_WhenChannelIsNull_UsingReflection()
     {
         // Test the OnMessageReceived event handler when channel is null
-        
+
         // Arrange
         var rabbitConfig = new RabbitMqConnection
         {
@@ -1167,7 +1167,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
 
         // Act - Use reflection to call private OnMessageReceived method with null model
         var onMessageReceivedMethod = typeof(RabbitMqConnectionHandler).GetMethod("OnMessageReceived", BindingFlags.NonPublic | BindingFlags.Instance);
-        
+
         var deliveryEventArgs = new BasicDeliverEventArgs
         {
             DeliveryTag = 1,
@@ -1186,7 +1186,7 @@ public class RabbitMqConnectionHandlerTests : IDisposable
         await handler.DisposeAsync();
     }
 
-    
+
 
     private void VerifyLogCalled(LogLevel level, string message)
     {
