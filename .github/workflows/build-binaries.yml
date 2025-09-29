@@ -2,7 +2,7 @@ name: Build and Test Multi-Architecture Binaries
 
 on:
   push:
-    branches: [ "main", "aot-casting" ]
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
   workflow_dispatch: ~
@@ -102,15 +102,7 @@ jobs:
         run: |
           cd simple-feature-test
           make all
-        timeout-minutes: 10
-
-      - name: Upload integration test logs
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: integration-test-logs
-          path: simple-feature-test/test-log/
-          retention-days: 7
+        timeout-minutes: 3
 
   build-linux-amd64:
     name: Build Linux AMD64

@@ -1,6 +1,8 @@
 Rabbit-Going-NATS
 =================
 
+[![Build and Test](https://github.com/ideaconnect/rabbit-going-nats/actions/workflows/build-binaries.yml/badge.svg?branch=main)](https://github.com/ideaconnect/rabbit-going-nats/actions/workflows/build-binaries.yml)
+
 Tool which allows to passthrough messages fetched from RabbitMQ's queue to NATS
 PubSub. Useful if you receive a data feed through RabbitMQ, but you need to
 redistribute it further to multiple clients in the most efficient way.
