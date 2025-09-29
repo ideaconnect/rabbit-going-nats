@@ -140,7 +140,7 @@ jobs:
 
   build-linux-arm64:
     name: Build Linux ARM64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     needs: [test-and-coverage, integration-test]
     steps:
       - name: Checkout repository
