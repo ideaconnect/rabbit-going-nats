@@ -75,12 +75,12 @@ public class MessageStatisticsService : IMessageStatisticsService
     public void RecordMessageReceived()
     {
         var now = DateTime.UtcNow;
-        
+
         lock (_lockObject)
         {
             _lastMessageReceived = now;
         }
-        
+
         _messageTimestamps.Enqueue(now);
         CleanupOldTimestamps();
     }
@@ -89,7 +89,7 @@ public class MessageStatisticsService : IMessageStatisticsService
     public void RecordMessageSent()
     {
         var now = DateTime.UtcNow;
-        
+
         lock (_lockObject)
         {
             _lastMessageSent = now;
@@ -100,14 +100,14 @@ public class MessageStatisticsService : IMessageStatisticsService
     public MessageStatistics GetStatistics()
     {
         CleanupOldTimestamps();
-        
+
         var now = DateTime.UtcNow;
         var oneHourAgo = now.AddHours(-1);
         var oneMinuteAgo = now.AddMinutes(-1);
 
         // Convert to array for safe iteration (snapshot)
         var timestamps = _messageTimestamps.ToArray();
-        
+
         var messagesInLastHour = timestamps.Count(t => t >= oneHourAgo);
         var messagesInLastMinute = timestamps.Count(t => t >= oneMinuteAgo);
 
@@ -130,7 +130,7 @@ public class MessageStatisticsService : IMessageStatisticsService
     private void CleanupOldTimestamps()
     {
         var oneHourAgo = DateTime.UtcNow.AddHours(-1);
-        
+
         // Remove old timestamps to prevent memory leak
         while (_messageTimestamps.TryPeek(out var oldestTimestamp) && oldestTimestamp < oneHourAgo)
         {

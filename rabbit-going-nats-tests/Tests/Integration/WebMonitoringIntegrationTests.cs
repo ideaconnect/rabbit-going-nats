@@ -27,10 +27,10 @@ public class WebMonitoringIntegrationTests : IDisposable
     {
         // Setup a minimal service container for integration tests
         var services = new ServiceCollection();
-        
+
         // Configure logging
         services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
-        
+
         // Configure web service
         var webConfig = new WebServiceConfiguration
         {
@@ -227,7 +227,7 @@ public class WebMonitoringIntegrationTests : IDisposable
     {
         // Arrange
         await _webService.StartAsync(CancellationToken.None);
-        
+
         // Record some initial activity
         _statisticsService.RecordMessageReceived();
         _statisticsService.RecordMessageSent();
@@ -237,7 +237,7 @@ public class WebMonitoringIntegrationTests : IDisposable
             // Act - Make multiple API calls
             var response1 = await _httpClient.GetAsync($"http://localhost:{TestPort}/stats");
             var json1 = await response1.Content.ReadAsStringAsync();
-            
+
             var response2 = await _httpClient.GetAsync($"http://localhost:{TestPort}/stats");
             var json2 = await response2.Content.ReadAsStringAsync();
 
@@ -256,7 +256,7 @@ public class WebMonitoringIntegrationTests : IDisposable
 
             stats1.Should().NotBeNull();
             stats2.Should().NotBeNull();
-            
+
             // Statistics should be identical
             stats1!.LastMessageReceived.Should().Be(stats2!.LastMessageReceived);
             stats1.LastMessageSent.Should().Be(stats2.LastMessageSent);

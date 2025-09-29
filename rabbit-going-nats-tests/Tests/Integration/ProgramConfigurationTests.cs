@@ -343,10 +343,10 @@ public class ProgramConfigurationTests
         // Register services
         services.AddSingleton<INatsConnectionHandler, NatsConnectionHandler>();
         services.AddSingleton<IRabbitMqConnectionHandler, RabbitMqConnectionHandler>();
-        
+
         // Register statistics service (required for connection handlers)
         services.AddSingleton<IMessageStatisticsService, MessageStatisticsService>();
-        
+
         services.AddSingleton<Worker>();
         services.AddHostedService<Worker>();
     }

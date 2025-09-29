@@ -72,7 +72,7 @@ public class WebMonitoringService : IWebMonitoringService, IHostedService, IDisp
         {
             _cancellationTokenSource = new CancellationTokenSource();
             _httpListener = new HttpListener();
-            
+
             var url = $"http://{_config.Host}:{_config.Port}/";
             _httpListener.Prefixes.Add(url);
             _httpListener.Start();
@@ -86,7 +86,7 @@ public class WebMonitoringService : IWebMonitoringService, IHostedService, IDisp
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to start web monitoring service on {Host}:{Port}", 
+            _logger.LogError(ex, "Failed to start web monitoring service on {Host}:{Port}",
                 _config.Host, _config.Port);
             throw;
         }
@@ -136,9 +136,9 @@ public class WebMonitoringService : IWebMonitoringService, IHostedService, IDisp
             {
                 // Get the next incoming request
                 var context = await _httpListener.GetContextAsync().ConfigureAwait(false);
-                
+
                 // Handle the request in a fire-and-forget manner to not block other requests
-                _ = Task.Run(async () => await ProcessRequestAsync(context).ConfigureAwait(false), 
+                _ = Task.Run(async () => await ProcessRequestAsync(context).ConfigureAwait(false),
                     cancellationToken);
             }
             catch (ObjectDisposedException)
@@ -200,11 +200,11 @@ public class WebMonitoringService : IWebMonitoringService, IHostedService, IDisp
                 case "/statistics":
                     await SendStatisticsResponse(response).ConfigureAwait(false);
                     break;
-                
+
                 case "/health":
                     await SendHealthResponse(response).ConfigureAwait(false);
                     break;
-                
+
                 default:
                     await SendErrorResponse(response, 404, "Endpoint not found. Available endpoints: /stats, /health").ConfigureAwait(false);
                     break;
@@ -263,7 +263,7 @@ public class WebMonitoringService : IWebMonitoringService, IHostedService, IDisp
     private async Task SendJsonResponse(HttpListenerResponse response, int statusCode, string json)
     {
         var buffer = Encoding.UTF8.GetBytes(json);
-        
+
         response.StatusCode = statusCode;
         response.ContentType = "application/json; charset=utf-8";
         response.ContentLength64 = buffer.Length;

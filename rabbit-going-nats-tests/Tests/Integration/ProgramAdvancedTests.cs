@@ -424,10 +424,10 @@ public class ProgramAdvancedTests
 
                 services.AddSingleton<INatsConnectionHandler, NatsConnectionHandler>();
                 services.AddSingleton<IRabbitMqConnectionHandler, RabbitMqConnectionHandler>();
-                
+
                 // Register statistics service (required for connection handlers)
                 services.AddSingleton<IMessageStatisticsService, MessageStatisticsService>();
-                
+
                 services.AddHostedService<Worker>();
 
                 services.AddLogging(loggingBuilder =>

@@ -108,7 +108,7 @@ IHost host = Host.CreateDefaultBuilder(args)
             // Validate port range if web service is enabled
             if (options.Enabled && (options.Port <= 0 || options.Port > 65535))
                 throw new InvalidOperationException("WebService Port must be between 1 and 65535");
-            
+
             // Validate host if web service is enabled
             if (options.Enabled && string.IsNullOrWhiteSpace(options.Host))
                 throw new InvalidOperationException("WebService Host is required when web service is enabled");
@@ -126,7 +126,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         // Register the main worker as a hosted service
         // This integrates with .NET's hosting infrastructure for lifecycle management
         services.AddHostedService<Worker>();
-        
+
         // Register the web monitoring service as a hosted service
         // Note: WebMonitoringService implements both IWebMonitoringService and IHostedService
         services.AddHostedService<WebMonitoringService>();

@@ -27,7 +27,7 @@ public class WebMonitoringServiceTests : IDisposable
     {
         _mockLogger = new Mock<ILogger<WebMonitoringService>>();
         _mockStatisticsService = new Mock<IMessageStatisticsService>();
-        
+
         // Use a different port for tests to avoid conflicts
         _config = new WebServiceConfiguration
         {
@@ -35,7 +35,7 @@ public class WebMonitoringServiceTests : IDisposable
             Port = 8019, // Different port for tests
             Enabled = true
         };
-        
+
         _options = Options.Create(_config);
         _webService = new WebMonitoringService(_mockLogger.Object, _options, _mockStatisticsService.Object);
         _httpClient = new HttpClient();
@@ -194,7 +194,7 @@ public class WebMonitoringServiceTests : IDisposable
         try
         {
             // Act
-            var response = await _httpClient.PostAsync($"http://{_config.Host}:{_config.Port}/stats", 
+            var response = await _httpClient.PostAsync($"http://{_config.Host}:{_config.Port}/stats",
                 new StringContent("test"));
 
             // Assert
