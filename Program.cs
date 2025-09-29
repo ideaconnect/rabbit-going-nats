@@ -1,7 +1,24 @@
-using RabbitGoingNats;
-using RabbitGoingNats.Model;
-using RabbitGoingNats.Service;
-using NLog.Extensions.Logging;
+/*
+    RabbitGoingNats - Message Bridge Application
+
+    This application acts as a bridge between RabbitMQ and NATS messaging systems.
+    It consumes messages from a configured RabbitMQ queue and republishes them
+    to a NATS subject, enabling message flow between these two messaging platforms.
+
+    Key Features:
+    - Real-time message consumption from RabbitMQ
+    - Seamless republishing to NATS
+    - Configurable connection parameters for both systems
+    - Robust error handling and logging
+    - Graceful shutdown support
+    - AOT (Ahead of Time) compilation ready
+*/
+
+// Import necessary namespaces for the application
+using RabbitGoingNats;                    // Main worker class
+using RabbitGoingNats.Model;              // Configuration models (RabbitMqConnection, NatsConnection)
+using RabbitGoingNats.Service;            // Service interfaces and implementations
+using NLog.Extensions.Logging;            // NLog integration for structured logging
 
 /*
    Copyright 2024 IDCT Bartosz Pachołek
@@ -39,45 +56,72 @@ using NLog.Extensions.Logging;
     Copied from: https://licenses.nuget.org/.
 */
 
+// Create and configure the application host using .NET's generic host builder
+// This provides dependency injection, logging, configuration, and hosting services
 IHost host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((hostContext, services) =>
     {
+        // Get the configuration instance to access appsettings.json and other config sources
         var configuration = hostContext.Configuration;
-        // Triggers AOT warnings, yet for NET 8+ workaround is actually not needed.
+
+        // === CONFIGURATION BINDING ===
+        // Using source generators for AOT-compatible configuration binding
+        // This eliminates reflection and improves startup performance in AOT scenarios
         services.Configure<RabbitMqConnection>(configuration.GetSection("RabbitMq"));
         services.Configure<NatsConnection>(configuration.GetSection("Nats"));
 
-        // Add configuration validation
+        // === CONFIGURATION VALIDATION ===
+        // Validate RabbitMQ configuration at startup to fail fast if misconfigured
+        // This prevents runtime errors and provides clear error messages
         services.PostConfigure<RabbitMqConnection>(options =>
         {
+            // Ensure required RabbitMQ connection parameters are provided
             if (string.IsNullOrWhiteSpace(options.HostName))
                 throw new InvalidOperationException("RabbitMQ HostName is required and cannot be empty");
             if (string.IsNullOrWhiteSpace(options.QueueName))
                 throw new InvalidOperationException("RabbitMQ QueueName is required and cannot be empty");
+
+            // Validate port range if specified (standard TCP port range)
             if (options.Port.HasValue && (options.Port <= 0 || options.Port > 65535))
                 throw new InvalidOperationException("RabbitMQ Port must be between 1 and 65535");
         });
 
+        // Validate NATS configuration at startup for the same reasons as above
         services.PostConfigure<NatsConnection>(options =>
         {
+            // Ensure required NATS connection parameters are provided
             if (string.IsNullOrWhiteSpace(options.Url))
                 throw new InvalidOperationException("NATS Url is required and cannot be empty");
             if (string.IsNullOrWhiteSpace(options.Subject))
                 throw new InvalidOperationException("NATS Subject is required and cannot be empty");
+
+            // Validate URL format and scheme to ensure it's a proper NATS URL
             if (!Uri.TryCreate(options.Url, UriKind.Absolute, out var uri) ||
                 (uri.Scheme != "nats" && uri.Scheme != "nats+tls"))
                 throw new InvalidOperationException("NATS Url must be a valid URI with 'nats://' or 'nats+tls://' scheme");
         });
 
+        // === SERVICE REGISTRATION ===
+        // Register messaging service implementations with their interfaces
+        // Using Singleton lifetime because these manage persistent connections
         services.AddSingleton<INatsConnectionHandler, NatsConnectionHandler>();
         services.AddSingleton<IRabbitMqConnectionHandler, RabbitMqConnectionHandler>();
+
+        // Register the main worker as a hosted service
+        // This integrates with .NET's hosting infrastructure for lifecycle management
         services.AddHostedService<Worker>();
+
+        // === LOGGING CONFIGURATION ===
+        // Configure structured logging using NLog
+        // Clear default providers and use NLog for consistent logging across the application
         services.AddLogging(static loggingBuilder =>
             {
-                loggingBuilder.ClearProviders();
-                loggingBuilder.AddNLog();
+                loggingBuilder.ClearProviders();    // Remove console/debug providers
+                loggingBuilder.AddNLog();            // Add NLog as the logging provider
             });
     })
-    .Build();
+    .Build();  // Build the configured host
 
+// Start the application and run until shutdown is requested
+// This will start all hosted services (including our Worker) and keep the application running
 await host.RunAsync();

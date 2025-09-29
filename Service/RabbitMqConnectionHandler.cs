@@ -178,10 +178,12 @@ public class RabbitMqConnectionHandler(ILogger<RabbitMqConnectionHandler> logger
     /// <summary>
     /// Starts the consumption. Builds required instances, connects and listens.
     /// </summary>
+    /// <param name="cancellationToken">Token to monitor for cancellation requests</param>
+    /// <returns>A task that completes when consumption is cancelled</returns>
     /// <todo>
     /// Separate listening from sending at some point.
     /// </todo>
-    public void Consume()
+    public async Task ConsumeAsync(CancellationToken cancellationToken)
     {
         var channel = BuildChannel();
         logger.LogDebug("Channel built.");
@@ -189,7 +191,33 @@ public class RabbitMqConnectionHandler(ILogger<RabbitMqConnectionHandler> logger
         logger.LogDebug("Consumer built.");
 
         logger.LogDebug("Starting messages consumption.");
-        channel.BasicConsume(GetQueueName(), false, consumer);
+        var consumerTag = channel.BasicConsume(GetQueueName(), false, consumer);
+
+        try
+        {
+            // Wait for cancellation request
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Consumption cancellation requested.");
+        }
+        finally
+        {
+            // Clean up the consumer
+            try
+            {
+                if (!string.IsNullOrEmpty(consumerTag))
+                {
+                    channel.BasicCancel(consumerTag);
+                    logger.LogDebug("Consumer cancelled successfully.");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Error cancelling consumer.");
+            }
+        }
     }
 
     /// <summary>
