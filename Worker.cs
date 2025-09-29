@@ -11,7 +11,7 @@ using Microsoft.Extensions.Hosting;
 /// <todo>
 /// Move sending to nats from rabbit's connection handler.
 /// </todo>
-public class Worker(ILogger<Worker> logger, RabbitMqConnectionHandler rabbitMqConnectionHandler) : IHostedService
+public class Worker(ILogger<Worker> logger, IRabbitMqConnectionHandler rabbitMqConnectionHandler) : IHostedService
 {
     private readonly ManualResetEvent resetEvent = new(false);
 

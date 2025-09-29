@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using NATS.Client.Core;
 using NATS.Net;
 
-public class NatsConnectionService
+public class NatsConnectionHandler : INatsConnectionHandler
 {
     /// <summary>
     /// Instance of the connector.
@@ -36,7 +36,7 @@ public class NatsConnectionService
     /// </summary>
     /// <param name="logger">Logger's instance</param>
     /// <param name="nats">Options which define connection params.</param>
-    public NatsConnectionService(ILogger<NatsConnectionService> logger, IOptions<Model.NatsConnection> nats)
+    public NatsConnectionHandler(ILogger<NatsConnectionHandler> logger, IOptions<Model.NatsConnection> nats)
     {
         this.logger = logger;
 

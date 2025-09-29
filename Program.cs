@@ -46,8 +46,31 @@ IHost host = Host.CreateDefaultBuilder(args)
         // Triggers AOT warnings, yet for NET 8+ workaround is actually not needed.
         services.Configure<RabbitMqConnection>(configuration.GetSection("RabbitMq"));
         services.Configure<NatsConnection>(configuration.GetSection("Nats"));
-        services.AddScoped<NatsConnectionService>();
-        services.AddScoped<RabbitMqConnectionHandler>();
+        
+        // Add configuration validation
+        services.PostConfigure<RabbitMqConnection>(options =>
+        {
+            if (string.IsNullOrWhiteSpace(options.HostName))
+                throw new InvalidOperationException("RabbitMQ HostName is required and cannot be empty");
+            if (string.IsNullOrWhiteSpace(options.QueueName))
+                throw new InvalidOperationException("RabbitMQ QueueName is required and cannot be empty");
+            if (options.Port.HasValue && (options.Port <= 0 || options.Port > 65535))
+                throw new InvalidOperationException("RabbitMQ Port must be between 1 and 65535");
+        });
+
+        services.PostConfigure<NatsConnection>(options =>
+        {
+            if (string.IsNullOrWhiteSpace(options.Url))
+                throw new InvalidOperationException("NATS Url is required and cannot be empty");
+            if (string.IsNullOrWhiteSpace(options.Subject))
+                throw new InvalidOperationException("NATS Subject is required and cannot be empty");
+            if (!Uri.TryCreate(options.Url, UriKind.Absolute, out var uri) || 
+                (uri.Scheme != "nats" && uri.Scheme != "nats+tls"))
+                throw new InvalidOperationException("NATS Url must be a valid URI with 'nats://' or 'nats+tls://' scheme");
+        });
+        
+        services.AddSingleton<INatsConnectionHandler, NatsConnectionHandler>();
+        services.AddSingleton<IRabbitMqConnectionHandler, RabbitMqConnectionHandler>();
         services.AddHostedService<Worker>();
         services.AddLogging(static loggingBuilder =>
             {

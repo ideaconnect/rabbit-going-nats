@@ -1,4 +1,5 @@
-namespace RabbitGoingNats.Service;
+namespace RabbitGoi/// servie </param>
+public class RabbitMqConnectionHandler(ILogger<RabbitMqConnectionHandler> logger, IOptions<RabbitMqConnection> rabbitMq, INatsConnectionHandler natsConnectionHandler) : IRabbitMqConnectionHandlerNats.Service;
 
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
@@ -16,9 +17,9 @@ using RabbitMQ.Client.Events;
 /// </todo>
 /// <param name="logger">Supported Logger instance, NLog by default.</param>
 /// <param name="rabbitMq">RabbitMQ options (connection detauls).</param>
-/// <param name="natsConnectionService">Previously initialized NATS connection
-/// servie </param>
-public class RabbitMqConnectionHandler(ILogger<RabbitMqConnectionHandler> logger, IOptions<RabbitMqConnection> rabbitMq, NatsConnectionService natsConnectionService) : IAsyncDisposable
+/// <param name="natsConnectionHandler">Previously initialized NATS connection
+/// service </param>
+public class RabbitMqConnectionHandler(ILogger<RabbitMqConnectionHandler> logger, IOptions<RabbitMqConnection> rabbitMq, NatsConnectionHandler natsConnectionHandler) : IAsyncDisposable
 {
     /// <summary>
     /// Connection loss of RabbitMQ (if occurred) time, for logging.
@@ -146,7 +147,7 @@ public class RabbitMqConnectionHandler(ILogger<RabbitMqConnectionHandler> logger
             channel.BasicAck(ea.DeliveryTag, true);
 
             // send it further to NATS
-            await natsConnectionService.Publish(message);
+            await natsConnectionHandler.Publish(message);
 
             var diff = DateTime.UtcNow - start;
 
