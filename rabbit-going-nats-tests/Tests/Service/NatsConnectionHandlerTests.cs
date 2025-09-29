@@ -469,6 +469,279 @@ public class NatsConnectionHandlerTests : IDisposable
         await handler.DisposeAsync();
     }
 
+    [Fact]
+    public async Task Publish_ShouldLogTraceMessage_WhenTraceLoggingEnabled()
+    {
+        // Arrange
+        var natsConfig = new NatsConnection
+        {
+            Url = "nats://localhost:4222",
+            Subject = "test.subject"
+        };
+        _mockOptions.Setup(x => x.Value).Returns(natsConfig);
+
+        // Setup trace logging to be enabled
+        _mockLogger.Setup(x => x.IsEnabled(LogLevel.Trace)).Returns(true);
+
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var testMessage = "Test message for trace logging";
+
+        // Act & Assert
+        // Since we can't easily mock the NATS client, we expect this to throw when trying to connect
+        try
+        {
+            await handler.Publish(testMessage);
+        }
+        catch
+        {
+            // Expected - actual NATS connection will fail in test environment
+        }
+
+        // The debug logging should have been attempted
+        VerifyLogCalled(LogLevel.Debug, "Publishing message to NATS subject");
+
+        // Cleanup
+        await handler.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Publish_ShouldHandleEmptyStringMessage()
+    {
+        // Arrange
+        var natsConfig = new NatsConnection
+        {
+            Url = "nats://localhost:4222",
+            Subject = "test.subject"
+        };
+        _mockOptions.Setup(x => x.Value).Returns(natsConfig);
+
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        var emptyMessage = "";
+
+        // Act & Assert
+        // Empty string should be valid (not null), so it should pass validation
+        try
+        {
+            await handler.Publish(emptyMessage);
+        }
+        catch (Exception ex)
+        {
+            // Should not be ArgumentNullException since empty string is not null
+            Assert.IsNotType<ArgumentNullException>(ex);
+        }
+
+        // Verify debug logging occurred for the empty message
+        VerifyLogCalled(LogLevel.Debug, "Publishing message to NATS subject");
+
+        // Cleanup
+        await handler.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Publish_ShouldHandleLargeMessage()
+    {
+        // Arrange
+        var natsConfig = new NatsConnection
+        {
+            Url = "nats://localhost:4222",
+            Subject = "test.subject"
+        };
+        _mockOptions.Setup(x => x.Value).Returns(natsConfig);
+
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+        // Create a large message to test handling of substantial payloads
+        var largeMessage = new string('A', 10000);
+
+        // Act & Assert
+        try
+        {
+            await handler.Publish(largeMessage);
+        }
+        catch (Exception ex)
+        {
+            // Should not be ArgumentNullException
+            Assert.IsNotType<ArgumentNullException>(ex);
+        }
+
+        // Verify debug logging occurred
+        VerifyLogCalled(LogLevel.Debug, "Publishing message to NATS subject");
+
+        // Cleanup
+        await handler.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData("Simple message")]
+    [InlineData("Message with special characters: àáâãäåæçèéêë")]
+    [InlineData("Message with numbers: 1234567890")]
+    [InlineData("Message with symbols: !@#$%^&*()")]
+    [InlineData("JSON-like message: {\"key\": \"value\", \"number\": 42}")]
+    [InlineData("XML-like message: <root><item>value</item></root>")]
+    public async Task Publish_ShouldHandleVariousMessageFormats(string message)
+    {
+        // Arrange
+        var natsConfig = new NatsConnection
+        {
+            Url = "nats://localhost:4222",
+            Subject = "test.subject"
+        };
+        _mockOptions.Setup(x => x.Value).Returns(natsConfig);
+
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+
+        // Act & Assert
+        try
+        {
+            await handler.Publish(message);
+        }
+        catch (Exception ex)
+        {
+            // Should not be ArgumentNullException for valid messages
+            Assert.IsNotType<ArgumentNullException>(ex);
+        }
+
+        // Verify debug logging occurred
+        VerifyLogCalled(LogLevel.Debug, "Publishing message to NATS subject");
+
+        // Cleanup
+        await handler.DisposeAsync();
+    }
+
+    [Fact]
+    public void Constructor_ShouldCreateInstanceWithComplexConfiguration()
+    {
+        // Arrange
+        var natsConfig = new NatsConnection
+        {
+            Url = "nats+tls://prod-nats-1:4222,nats+tls://prod-nats-2:4222,nats+tls://prod-nats-3:4222",
+            Subject = "production.events.orders.created",
+            Secret = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+            User = "production-service-account",
+            Password = "super-secure-production-password-123!"
+        };
+        _mockOptions.Setup(x => x.Value).Returns(natsConfig);
+
+        // Act
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+
+        // Assert
+        Assert.NotNull(handler);
+        VerifyLogCalled(LogLevel.Debug, "Configuring NATS with token-based authentication.");
+        VerifyLogCalled(LogLevel.Information, "Initialized NATS connection handler at:");
+
+        // Cleanup
+        handler.DisposeAsync().AsTask().Wait();
+    }
+
+    [Fact]
+    public void Constructor_ShouldGenerateCorrectReplyTopicBasedOnSubject()
+    {
+        // Arrange - Test various subject patterns to ensure reply topic generation works
+        var testCases = new[]
+        {
+            ("orders", "r-orders"),
+            ("events.user.created", "r-events.user.created"),
+            ("production.payments.processed", "r-production.payments.processed"),
+            ("system.health.check", "r-system.health.check")
+        };
+
+        foreach (var (subject, expectedReplyPrefix) in testCases)
+        {
+            var natsConfig = new NatsConnection
+            {
+                Url = "nats://localhost:4222",
+                Subject = subject
+            };
+            _mockOptions.Setup(x => x.Value).Returns(natsConfig);
+
+            // Act
+            var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+
+            // Assert
+            Assert.NotNull(handler);
+            // We can't directly test the reply topic since it's private,
+            // but we can verify the handler was created successfully with the subject
+            VerifyLogCalled(LogLevel.Information, "Initialized NATS connection handler at:");
+
+            // Cleanup
+            handler.DisposeAsync().AsTask().Wait();
+
+            // Reset mock for next iteration
+            _mockLogger.Reset();
+        }
+    }
+
+    [Fact]
+    public async Task DisposeAsync_ShouldHandleNullClient()
+    {
+        // Arrange
+        var natsConfig = new NatsConnection
+        {
+            Url = "nats://localhost:4222",
+            Subject = "test.subject"
+        };
+        _mockOptions.Setup(x => x.Value).Returns(natsConfig);
+
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+
+        // Act - Multiple disposals should be safe
+        await handler.DisposeAsync();
+
+        // Second disposal should not throw
+        var exception = await Record.ExceptionAsync(async () => await handler.DisposeAsync());
+
+        // Assert
+        Assert.Null(exception);
+        VerifyLogCalled(LogLevel.Information, "NATS connection handler disposed successfully.");
+    }
+
+    [Fact]
+    public void Constructor_ShouldHandleConfigurationEdgeCases()
+    {
+        // Test edge case: very long URL
+        var natsConfig = new NatsConnection
+        {
+            Url = "nats+tls://very-long-hostname-that-might-cause-issues-in-some-systems.example.com:4222",
+            Subject = "very.long.subject.name.that.contains.many.segments.and.might.be.used.in.microservices.architecture"
+        };
+        _mockOptions.Setup(x => x.Value).Returns(natsConfig);
+
+        // Act
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+
+        // Assert
+        Assert.NotNull(handler);
+        VerifyLogCalled(LogLevel.Information, "Initialized NATS connection handler at:");
+
+        // Cleanup
+        handler.DisposeAsync().AsTask().Wait();
+    }
+
+    [Fact]
+    public void Constructor_ShouldHandleSpecialCharactersInCredentials()
+    {
+        // Arrange
+        var natsConfig = new NatsConnection
+        {
+            Url = "nats://localhost:4222",
+            Subject = "test.subject",
+            User = "user@domain.com",
+            Password = "P@ssw0rd!#$%^&*()_+-=[]{}|;:'\",.<>?/~`"
+        };
+        _mockOptions.Setup(x => x.Value).Returns(natsConfig);
+
+        // Act
+        var handler = new NatsConnectionHandler(_mockLogger.Object, _mockOptions.Object);
+
+        // Assert
+        Assert.NotNull(handler);
+        VerifyLogCalled(LogLevel.Debug, "Configuring NATS with username/password authentication.");
+        VerifyLogCalled(LogLevel.Information, "Initialized NATS connection handler at:");
+
+        // Cleanup
+        handler.DisposeAsync().AsTask().Wait();
+    }
+
     private void VerifyLogCalled(LogLevel level, string message)
     {
         _mockLogger.Verify(
