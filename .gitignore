@@ -4,5 +4,6 @@ rabbit-going-nats/obj/
 rabbit-going-nats-tests/bin/
 rabbit-going-nats-tests/obj/
 rabbit-going-nats-tests/CoverageReport/
+rabbit-going-nats-tests/coverage-report/
 rabbit-going-nats-tests/TestResults/
 .cache
