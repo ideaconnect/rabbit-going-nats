@@ -26,10 +26,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="README.md">
+    <None Include="../README.md">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="LICENSE">
+    <None Include="../LICENSE">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Licenses\**\*.*">

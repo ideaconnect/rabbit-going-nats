@@ -1,0 +1,28 @@
+Summary
+  Generated on: 09/29/2025 - 21:24:25
+  Coverage date: 09/29/2025 - 21:24:24
+  Parser: Cobertura
+  Assemblies: 1
+  Classes: 6
+  Files: 6
+  Line coverage: 0.9%
+  Covered lines: 5
+  Uncovered lines: 503
+  Coverable lines: 508
+  Total lines: 1436
+  Branch coverage: 0% (0 of 108)
+  Covered branches: 0
+  Total branches: 108
+  Method coverage: 15.6% (5 of 32)
+  Full method coverage: 15.6% (5 of 32)
+  Covered methods: 5
+  Fully covered methods: 5
+  Total methods: 32
+
+RabbitGoingNats                                        0.9%
+  Program                                                0%
+  RabbitGoingNats.Model.NatsConnection                 100%
+  RabbitGoingNats.Model.RabbitMqConnection               0%
+  RabbitGoingNats.Service.NatsConnectionHandler          0%
+  RabbitGoingNats.Service.RabbitMqConnectionHandler      0%
+  RabbitGoingNats.Worker                                 0%
